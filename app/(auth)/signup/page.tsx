@@ -162,8 +162,8 @@ export default function SignupPage() {
                   className="ml-1 block flex-1 rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                 />
               </div>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                This will be your public URL
+              <p className="mt-1 text-sm text-amber-600 dark:text-amber-400">
+                This will be your public URL and cannot be changed later
               </p>
             </div>
 
