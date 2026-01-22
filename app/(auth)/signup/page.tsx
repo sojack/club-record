@@ -113,7 +113,7 @@ export default function SignupPage() {
                 htmlFor="shortName"
                 className="block text-sm font-medium text-gray-700 dark:text-gray-300"
               >
-                Short Name (e.g., RHAC)
+                Short Name (e.g., UAC)
               </label>
               <input
                 id="shortName"
@@ -131,7 +131,7 @@ export default function SignupPage() {
                 htmlFor="fullName"
                 className="block text-sm font-medium text-gray-700 dark:text-gray-300"
               >
-                Full Name (e.g., Richmond Hill Aquatic Club)
+                Full Name (e.g., Uptown Aquatic Club)
               </label>
               <input
                 id="fullName"
