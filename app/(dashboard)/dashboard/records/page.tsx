@@ -73,12 +73,20 @@ export default function RecordListsPage() {
             Manage your club&apos;s record lists by age group, gender, or category.
           </p>
         </div>
-        <Link
-          href="/dashboard/records/new"
-          className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-        >
-          Create New List
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/dashboard/records/bulk-upload"
+            className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+          >
+            Bulk Upload
+          </Link>
+          <Link
+            href="/dashboard/records/new"
+            className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+          >
+            Create New List
+          </Link>
+        </div>
       </div>
 
       {recordLists.length > 0 ? (
