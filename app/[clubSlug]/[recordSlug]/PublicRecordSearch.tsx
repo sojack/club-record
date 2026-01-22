@@ -2,16 +2,16 @@
 
 import { useState } from "react";
 import type { SwimRecord } from "@/types/database";
+import { formatMsToTime } from "@/lib/time-utils";
 
 interface PublicRecordSearchProps {
   records: SwimRecord[];
-  formatTime: (ms: number) => string;
 }
 
 export default function PublicRecordSearch({
   records,
-  formatTime,
 }: PublicRecordSearchProps) {
+  const formatTime = formatMsToTime;
   const [search, setSearch] = useState("");
 
   const filteredRecords = records.filter((record) => {

@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { formatMsToTime } from "@/lib/time-utils";
 import type { Club, RecordList, SwimRecord } from "@/types/database";
 import PublicRecordSearch from "./PublicRecordSearch";
 
@@ -104,7 +103,7 @@ export default async function RecordPage({ params }: RecordPageProps) {
         </div>
       </div>
 
-      <PublicRecordSearch records={typedRecords} formatTime={formatMsToTime} />
+      <PublicRecordSearch records={typedRecords} />
     </div>
   );
 }
