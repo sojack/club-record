@@ -1,24 +1,66 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/client";
+import { useClub } from "@/contexts/ClubContext";
+import type { RecordList } from "@/types/database";
 
-export default async function RecordListsPage() {
-  const supabase = await createClient();
+export default function RecordListsPage() {
+  const { selectedClub, isLoading: clubLoading } = useClub();
+  const [recordLists, setRecordLists] = useState<(RecordList & { records: { count: number }[] })[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  useEffect(() => {
+    if (selectedClub) {
+      loadRecordLists();
+    } else if (!clubLoading) {
+      setLoading(false);
+    }
+  }, [selectedClub, clubLoading]);
 
-  const { data: club } = await supabase
-    .from("clubs")
-    .select("*")
-    .eq("user_id", user?.id)
-    .single();
+  const loadRecordLists = async () => {
+    if (!selectedClub) return;
 
-  const { data: recordLists } = await supabase
-    .from("record_lists")
-    .select("*, records(count)")
-    .eq("club_id", club?.id)
-    .order("created_at", { ascending: false });
+    setLoading(true);
+    const supabase = createClient();
+
+    const { data } = await supabase
+      .from("record_lists")
+      .select("*, records(count)")
+      .eq("club_id", selectedClub.id)
+      .order("created_at", { ascending: false });
+
+    setRecordLists((data as (RecordList & { records: { count: number }[] })[]) || []);
+    setLoading(false);
+  };
+
+  if (loading || clubLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-gray-500 dark:text-gray-400">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!selectedClub) {
+    return (
+      <div className="py-12 text-center">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+          No club selected
+        </h2>
+        <p className="mt-2 text-gray-500 dark:text-gray-400">
+          Create a club to get started.
+        </p>
+        <Link
+          href="/dashboard/clubs/new"
+          className="mt-4 inline-block rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700"
+        >
+          Create Club
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -39,7 +81,7 @@ export default async function RecordListsPage() {
         </Link>
       </div>
 
-      {recordLists && recordLists.length > 0 ? (
+      {recordLists.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {recordLists.map((list) => (
             <Link
@@ -55,11 +97,11 @@ export default async function RecordListsPage() {
                   {list.course_type}
                 </span>
                 <span className="text-sm text-gray-500 dark:text-gray-400">
-                  {(list.records as { count: number }[])?.[0]?.count || 0} records
+                  {list.records?.[0]?.count || 0} records
                 </span>
               </div>
               <div className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-                /{club?.slug}/{list.slug}
+                /{selectedClub.slug}/{list.slug}
               </div>
             </Link>
           ))}

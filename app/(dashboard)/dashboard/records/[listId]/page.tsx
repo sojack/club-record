@@ -4,17 +4,18 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useClub } from "@/contexts/ClubContext";
 import RecordTable from "@/components/RecordTable";
 import CSVUploader from "@/components/CSVUploader";
-import type { RecordList, SwimRecord, Club } from "@/types/database";
+import type { RecordList, SwimRecord } from "@/types/database";
 import type { CSVRecord } from "@/lib/csv-parser";
 
 export default function RecordListDetailPage() {
   const router = useRouter();
   const params = useParams();
   const listId = params.listId as string;
+  const { selectedClub } = useClub();
 
-  const [club, setClub] = useState<Club | null>(null);
   const [recordList, setRecordList] = useState<RecordList | null>(null);
   const [records, setRecords] = useState<SwimRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,22 +28,6 @@ export default function RecordListDetailPage() {
 
   const loadData = useCallback(async () => {
     const supabase = createClient();
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (user) {
-      const { data: clubData } = await supabase
-        .from("clubs")
-        .select("*")
-        .eq("user_id", user.id)
-        .single();
-
-      if (clubData) {
-        setClub(clubData as Club);
-      }
-    }
 
     const { data: listData } = await supabase
       .from("record_lists")
@@ -278,7 +263,7 @@ export default function RecordListDetailPage() {
                   {recordList.course_type}
                 </span>
                 <span className="text-sm text-gray-500 dark:text-gray-400">
-                  /{club?.slug}/{recordList.slug}
+                  /{selectedClub?.slug}/{recordList.slug}
                 </span>
               </div>
             </div>

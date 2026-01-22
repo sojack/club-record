@@ -1,35 +1,77 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/client";
+import { useClub } from "@/contexts/ClubContext";
+import type { RecordList } from "@/types/database";
 
-export default async function DashboardPage() {
-  const supabase = await createClient();
+export default function DashboardPage() {
+  const { selectedClub, isLoading: clubLoading } = useClub();
+  const [recordLists, setRecordLists] = useState<(RecordList & { records: { count: number }[] })[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  useEffect(() => {
+    if (selectedClub) {
+      loadRecordLists();
+    } else if (!clubLoading) {
+      setLoading(false);
+    }
+  }, [selectedClub, clubLoading]);
 
-  const { data: club } = await supabase
-    .from("clubs")
-    .select("*")
-    .eq("user_id", user?.id)
-    .single();
+  const loadRecordLists = async () => {
+    if (!selectedClub) return;
 
-  const { data: recordLists } = await supabase
-    .from("record_lists")
-    .select("*, records(count)")
-    .eq("club_id", club?.id)
-    .order("created_at", { ascending: false });
+    setLoading(true);
+    const supabase = createClient();
 
-  const totalRecords = recordLists?.reduce(
-    (acc, list) => acc + ((list.records as { count: number }[])?.[0]?.count || 0),
+    const { data } = await supabase
+      .from("record_lists")
+      .select("*, records(count)")
+      .eq("club_id", selectedClub.id)
+      .order("created_at", { ascending: false });
+
+    setRecordLists((data as (RecordList & { records: { count: number }[] })[]) || []);
+    setLoading(false);
+  };
+
+  const totalRecords = recordLists.reduce(
+    (acc, list) => acc + (list.records?.[0]?.count || 0),
     0
-  ) || 0;
+  );
+
+  if (loading || clubLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-gray-500 dark:text-gray-400">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!selectedClub) {
+    return (
+      <div className="py-12 text-center">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+          No club selected
+        </h2>
+        <p className="mt-2 text-gray-500 dark:text-gray-400">
+          Create a club to get started.
+        </p>
+        <Link
+          href="/dashboard/clubs/new"
+          className="mt-4 inline-block rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700"
+        >
+          Create Club
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div>
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Welcome, {club?.full_name || "Club"}
+          Welcome, {selectedClub.full_name}
         </h1>
         <p className="mt-2 text-gray-600 dark:text-gray-400">
           Manage your club records and share them with your community.
@@ -42,7 +84,7 @@ export default async function DashboardPage() {
             Record Lists
           </div>
           <div className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
-            {recordLists?.length || 0}
+            {recordLists.length}
           </div>
         </div>
         <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
@@ -58,7 +100,7 @@ export default async function DashboardPage() {
             Public URL
           </div>
           <div className="mt-2 text-lg font-medium text-blue-600 dark:text-blue-400">
-            /{club?.slug}
+            /{selectedClub.slug}
           </div>
         </div>
       </div>
@@ -76,7 +118,7 @@ export default async function DashboardPage() {
           </Link>
         </div>
 
-        {recordLists && recordLists.length > 0 ? (
+        {recordLists.length > 0 ? (
           <div className="space-y-3">
             {recordLists.slice(0, 5).map((list) => (
               <Link
@@ -89,11 +131,11 @@ export default async function DashboardPage() {
                     {list.title}
                   </div>
                   <div className="text-sm text-gray-500 dark:text-gray-400">
-                    {list.course_type} • /{club?.slug}/{list.slug}
+                    {list.course_type} • /{selectedClub.slug}/{list.slug}
                   </div>
                 </div>
                 <div className="text-sm text-gray-500 dark:text-gray-400">
-                  {(list.records as { count: number }[])?.[0]?.count || 0} records
+                  {list.records?.[0]?.count || 0} records
                 </div>
               </Link>
             ))}

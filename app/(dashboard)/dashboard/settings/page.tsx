@@ -2,49 +2,30 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import type { Club } from "@/types/database";
+import { useClub } from "@/contexts/ClubContext";
 
 export default function SettingsPage() {
   const router = useRouter();
-  const [club, setClub] = useState<Club | null>(null);
+  const { selectedClub, isLoading: clubLoading } = useClub();
   const [shortName, setShortName] = useState("");
   const [fullName, setFullName] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
-    loadClub();
-  }, []);
-
-  const loadClub = async () => {
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (user) {
-      const { data } = await supabase
-        .from("clubs")
-        .select("*")
-        .eq("user_id", user.id)
-        .single();
-
-      if (data) {
-        setClub(data as Club);
-        setShortName(data.short_name);
-        setFullName(data.full_name);
-        setLogoUrl(data.logo_url || "");
-      }
+    if (selectedClub) {
+      setShortName(selectedClub.short_name);
+      setFullName(selectedClub.full_name);
+      setLogoUrl(selectedClub.logo_url || "");
     }
-    setLoading(false);
-  };
+  }, [selectedClub]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!club) return;
+    if (!selectedClub) return;
 
     setSaving(true);
     setMessage(null);
@@ -57,7 +38,7 @@ export default function SettingsPage() {
         full_name: fullName,
         logo_url: logoUrl || null,
       })
-      .eq("id", club.id);
+      .eq("id", selectedClub.id);
 
     if (error) {
       setMessage({ type: "error", text: error.message });
@@ -69,10 +50,29 @@ export default function SettingsPage() {
     setSaving(false);
   };
 
-  if (loading) {
+  if (clubLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-gray-500 dark:text-gray-400">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!selectedClub) {
+    return (
+      <div className="py-12 text-center">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+          No club selected
+        </h2>
+        <p className="mt-2 text-gray-500 dark:text-gray-400">
+          Create a club to manage settings.
+        </p>
+        <Link
+          href="/dashboard/clubs/new"
+          className="mt-4 inline-block rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700"
+        >
+          Create Club
+        </Link>
       </div>
     );
   }
@@ -167,7 +167,7 @@ export default function SettingsPage() {
               Public URL
             </div>
             <code className="mt-1 block text-sm text-gray-900 dark:text-white">
-              clubrecord.app/{club?.slug}
+              clubrecord.app/{selectedClub.slug}
             </code>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               URL slug cannot be changed after creation

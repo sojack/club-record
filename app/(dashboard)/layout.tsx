@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import Sidebar from "@/components/Sidebar";
 import type { Club } from "@/types/database";
+import DashboardShell from "@/components/DashboardShell";
 
 export default async function DashboardLayout({
   children,
@@ -18,18 +18,15 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  const { data: club } = await supabase
+  const { data: clubs } = await supabase
     .from("clubs")
     .select("*")
     .eq("user_id", user.id)
-    .single();
+    .order("created_at", { ascending: true });
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-      <Sidebar club={club as Club | null} />
-      <main className="flex-1 overflow-auto">
-        <div className="container mx-auto p-6">{children}</div>
-      </main>
-    </div>
+    <DashboardShell clubs={(clubs as Club[]) || []}>
+      {children}
+    </DashboardShell>
   );
 }
