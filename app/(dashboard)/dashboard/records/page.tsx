@@ -10,6 +10,11 @@ export default function RecordListsPage() {
   const { selectedClub, isLoading: clubLoading } = useClub();
   const [recordLists, setRecordLists] = useState<(RecordList & { records: { count: number }[] })[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 });
+  const [deleteResults, setDeleteResults] = useState<{ success: string[]; failed: string[] } | null>(null);
 
   useEffect(() => {
     if (selectedClub) {
@@ -33,6 +38,60 @@ export default function RecordListsPage() {
 
     setRecordLists((data as (RecordList & { records: { count: number }[] })[]) || []);
     setLoading(false);
+    setSelectedIds([]);
+  };
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === recordLists.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(recordLists.map((list) => list.id));
+    }
+  };
+
+  const getSelectedRecordCount = () => {
+    return recordLists
+      .filter((list) => selectedIds.includes(list.id))
+      .reduce((sum, list) => sum + (list.records?.[0]?.count || 0), 0);
+  };
+
+  const handleBulkDelete = async () => {
+    setIsDeleting(true);
+    setDeleteProgress({ current: 0, total: selectedIds.length });
+    setDeleteResults(null);
+
+    const supabase = createClient();
+    const success: string[] = [];
+    const failed: string[] = [];
+
+    for (let i = 0; i < selectedIds.length; i++) {
+      const id = selectedIds[i];
+      const list = recordLists.find((l) => l.id === id);
+      setDeleteProgress({ current: i + 1, total: selectedIds.length });
+
+      const { error } = await supabase.from("record_lists").delete().eq("id", id);
+
+      if (error) {
+        failed.push(`${list?.title || id}: ${error.message}`);
+      } else {
+        success.push(list?.title || id);
+      }
+    }
+
+    setDeleteResults({ success, failed });
+    setIsDeleting(false);
+
+    if (failed.length === 0) {
+      setShowDeleteModal(false);
+      setSelectedIds([]);
+      loadRecordLists();
+    }
   };
 
   if (loading || clubLoading) {
@@ -90,30 +149,78 @@ export default function RecordListsPage() {
       </div>
 
       {recordLists.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {recordLists.map((list) => (
-            <Link
-              key={list.id}
-              href={`/dashboard/records/${list.id}`}
-              className="rounded-xl bg-white p-6 shadow-sm transition-shadow hover:shadow-md dark:bg-gray-800"
-            >
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {list.title}
-              </h3>
-              <div className="mt-2 flex items-center gap-2">
-                <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
-                  {list.course_type}
+        <>
+          {/* Selection Toolbar */}
+          <div className="mb-4 flex items-center justify-between rounded-lg bg-gray-100 px-4 py-2 dark:bg-gray-700">
+            <div className="flex items-center gap-4">
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.length === recordLists.length && recordLists.length > 0}
+                  onChange={toggleSelectAll}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  {selectedIds.length === 0
+                    ? "Select all"
+                    : `${selectedIds.length} selected`}
                 </span>
-                <span className="text-sm text-gray-500 dark:text-gray-400">
-                  {list.records?.[0]?.count || 0} records
-                </span>
+              </label>
+              {selectedIds.length > 0 && (
+                <button
+                  onClick={() => setSelectedIds([])}
+                  className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  Clear selection
+                </button>
+              )}
+            </div>
+            {selectedIds.length > 0 && (
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                className="rounded-lg border border-red-300 px-4 py-1.5 text-sm text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
+              >
+                Delete {selectedIds.length} {selectedIds.length === 1 ? "list" : "lists"}
+              </button>
+            )}
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {recordLists.map((list) => (
+              <div
+                key={list.id}
+                className={`relative rounded-xl bg-white p-6 shadow-sm transition-shadow hover:shadow-md dark:bg-gray-800 ${
+                  selectedIds.includes(list.id) ? "ring-2 ring-blue-500" : ""
+                }`}
+              >
+                <div className="absolute left-4 top-4">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(list.id)}
+                    onChange={() => toggleSelection(list.id)}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </div>
+                <Link href={`/dashboard/records/${list.id}`} className="block pl-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {list.title}
+                  </h3>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                      {list.course_type}
+                    </span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      {list.records?.[0]?.count || 0} records
+                    </span>
+                  </div>
+                  <div className="mt-3 text-sm text-gray-500 dark:text-gray-400">
+                    /{selectedClub.slug}/{list.slug}
+                  </div>
+                </Link>
               </div>
-              <div className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-                /{selectedClub.slug}/{list.slug}
-              </div>
-            </Link>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       ) : (
         <div className="rounded-xl bg-white p-12 text-center shadow-sm dark:bg-gray-800">
           <div className="text-5xl">📋</div>
@@ -129,6 +236,111 @@ export default function RecordListsPage() {
           >
             Create Record List
           </Link>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-gray-800">
+            {!deleteResults ? (
+              <>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Delete {selectedIds.length} {selectedIds.length === 1 ? "list" : "lists"}?
+                </h3>
+                <p className="mt-2 text-gray-600 dark:text-gray-400">
+                  This will permanently delete {selectedIds.length}{" "}
+                  {selectedIds.length === 1 ? "record list" : "record lists"} and{" "}
+                  <span className="font-semibold">{getSelectedRecordCount()} records</span>.
+                  This action cannot be undone.
+                </p>
+
+                {isDeleting && (
+                  <div className="mt-4">
+                    <div className="mb-2 flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                      <span>Deleting...</span>
+                      <span>
+                        {deleteProgress.current} / {deleteProgress.total}
+                      </span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                      <div
+                        className="h-full bg-red-500 transition-all"
+                        style={{
+                          width: `${(deleteProgress.current / deleteProgress.total) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-6 flex justify-end gap-3">
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    disabled={isDeleting}
+                    className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleBulkDelete}
+                    disabled={isDeleting}
+                    className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {isDeleting ? "Deleting..." : "Delete"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  {deleteResults.failed.length === 0 ? "Deletion Complete" : "Deletion Results"}
+                </h3>
+
+                {deleteResults.success.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-sm font-medium text-green-700 dark:text-green-400">
+                      Successfully deleted ({deleteResults.success.length}):
+                    </p>
+                    <ul className="mt-1 max-h-32 overflow-y-auto text-sm text-gray-600 dark:text-gray-400">
+                      {deleteResults.success.map((title, i) => (
+                        <li key={i}>• {title}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {deleteResults.failed.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-sm font-medium text-red-700 dark:text-red-400">
+                      Failed to delete ({deleteResults.failed.length}):
+                    </p>
+                    <ul className="mt-1 max-h-32 overflow-y-auto text-sm text-gray-600 dark:text-gray-400">
+                      {deleteResults.failed.map((error, i) => (
+                        <li key={i}>• {error}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="mt-6 flex justify-end">
+                  <button
+                    onClick={() => {
+                      setShowDeleteModal(false);
+                      setDeleteResults(null);
+                      if (deleteResults.success.length > 0) {
+                        setSelectedIds([]);
+                        loadRecordLists();
+                      }
+                    }}
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+                  >
+                    Done
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>
