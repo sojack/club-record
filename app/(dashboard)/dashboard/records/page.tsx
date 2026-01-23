@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useClub } from "@/contexts/ClubContext";
-import type { RecordList } from "@/types/database";
+import { formatMsToTime } from "@/lib/time-utils";
+import type { RecordList, SwimRecord } from "@/types/database";
 
 export default function RecordListsPage() {
   const { selectedClub, isLoading: clubLoading } = useClub();
@@ -15,6 +16,7 @@ export default function RecordListsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 });
   const [deleteResults, setDeleteResults] = useState<{ success: string[]; failed: string[] } | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     if (selectedClub) {
@@ -94,6 +96,75 @@ export default function RecordListsPage() {
     }
   };
 
+  const handleExportCSV = async () => {
+    if (!selectedClub) return;
+
+    setIsExporting(true);
+
+    const supabase = createClient();
+
+    // Fetch all record lists with their records
+    const { data: lists } = await supabase
+      .from("record_lists")
+      .select("id, title")
+      .eq("club_id", selectedClub.id)
+      .order("title");
+
+    if (!lists || lists.length === 0) {
+      setIsExporting(false);
+      return;
+    }
+
+    // Fetch all records for these lists
+    const listIds = lists.map((l) => l.id);
+    const { data: records } = await supabase
+      .from("records")
+      .select("*")
+      .in("record_list_id", listIds)
+      .order("sort_order");
+
+    if (!records) {
+      setIsExporting(false);
+      return;
+    }
+
+    // Create a map of list id to title
+    const listTitleMap = new Map(lists.map((l) => [l.id, l.title]));
+
+    // Build CSV content
+    const csvRows = [
+      ["Record List", "Event", "Time", "Swimmer", "Date", "Location"].join(","),
+    ];
+
+    for (const record of records as SwimRecord[]) {
+      const listTitle = listTitleMap.get(record.record_list_id) || "";
+      const row = [
+        `"${listTitle.replace(/"/g, '""')}"`,
+        `"${record.event_name.replace(/"/g, '""')}"`,
+        `"${formatMsToTime(record.time_ms)}"`,
+        `"${record.swimmer_name.replace(/"/g, '""')}"`,
+        `"${record.record_date || ""}"`,
+        `"${(record.location || "").replace(/"/g, '""')}"`,
+      ];
+      csvRows.push(row.join(","));
+    }
+
+    const csvContent = csvRows.join("\n");
+
+    // Trigger download
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${selectedClub.slug}-records.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setIsExporting(false);
+  };
+
   if (loading || clubLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -133,6 +204,13 @@ export default function RecordListsPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={handleExportCSV}
+            disabled={isExporting || recordLists.length === 0}
+            className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+          >
+            {isExporting ? "Exporting..." : "Export CSV"}
+          </button>
           <Link
             href="/dashboard/records/bulk-upload"
             className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
