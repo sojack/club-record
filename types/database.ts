@@ -27,7 +27,9 @@ export interface SwimRecord {
   location: string | null;
   sort_order: number;
   is_national: boolean;
+  is_current_national: boolean;
   is_provincial: boolean;
+  is_current_provincial: boolean;
   is_split: boolean;
   is_relay_split: boolean;
   is_new: boolean;

@@ -27,7 +27,7 @@ export default function PublicRecordSearch({
 
   // Check if any records have flags
   const hasAnyFlags = records.some(
-    (r) => r.is_national || r.is_provincial || r.is_split || r.is_relay_split || r.is_new
+    (r) => r.is_national || r.is_current_national || r.is_provincial || r.is_current_provincial || r.is_split || r.is_relay_split || r.is_new
   );
 
   return (

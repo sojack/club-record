@@ -8,7 +8,9 @@ export interface CSVRecord {
   record_date: string | null;
   location: string | null;
   is_national: boolean;
+  is_current_national: boolean;
   is_provincial: boolean;
+  is_current_provincial: boolean;
   is_split: boolean;
   is_relay_split: boolean;
   is_new: boolean;
@@ -49,7 +51,9 @@ export function parseRecordsCSV(csvContent: string): {
     date: ["date", "record_date", "recorddate"],
     location: ["location", "meet", "venue"],
     is_national: ["is_national", "national", "canadian_record"],
+    is_current_national: ["is_current_national", "current_national", "current_canadian"],
     is_provincial: ["is_provincial", "provincial", "provincial_record"],
+    is_current_provincial: ["is_current_provincial", "current_provincial"],
     is_split: ["is_split", "split", "split_time"],
     is_relay_split: ["is_relay_split", "relay_split", "relay"],
     is_new: ["is_new", "new", "new_record"],
@@ -77,7 +81,9 @@ export function parseRecordsCSV(csvContent: string): {
     const date = findColumn(row, columnMaps.date);
     const location = findColumn(row, columnMaps.location);
     const is_national = findColumn(row, columnMaps.is_national);
+    const is_current_national = findColumn(row, columnMaps.is_current_national);
     const is_provincial = findColumn(row, columnMaps.is_provincial);
+    const is_current_provincial = findColumn(row, columnMaps.is_current_provincial);
     const is_split = findColumn(row, columnMaps.is_split);
     const is_relay_split = findColumn(row, columnMaps.is_relay_split);
     const is_new = findColumn(row, columnMaps.is_new);
@@ -102,7 +108,9 @@ export function parseRecordsCSV(csvContent: string): {
       record_date: date?.trim() || null,
       location: location?.trim() || null,
       is_national: parseBoolean(is_national),
+      is_current_national: parseBoolean(is_current_national),
       is_provincial: parseBoolean(is_provincial),
+      is_current_provincial: parseBoolean(is_current_provincial),
       is_split: parseBoolean(is_split),
       is_relay_split: parseBoolean(is_relay_split),
       is_new: parseBoolean(is_new),
@@ -116,7 +124,7 @@ export function parseRecordsCSV(csvContent: string): {
  * Generate a CSV template string
  */
 export function generateCSVTemplate(): string {
-  const headers = ["Event", "Time", "Swimmer", "Date", "Location", "is_National", "is_Provincial", "is_Split", "is_RelaySplit", "is_New"];
-  const exampleRow = ["50 Free", "24.56", "John Smith", "2024-03-15", "City Championships", "", "", "", "", ""];
+  const headers = ["Event", "Time", "Swimmer", "Date", "Location", "is_National", "is_Current_National", "is_Provincial", "is_Current_Provincial", "is_Split", "is_RelaySplit", "is_New"];
+  const exampleRow = ["50 Free", "24.56", "John Smith", "2024-03-15", "City Championships", "", "", "", "", "", "", ""];
   return [headers.join(","), exampleRow.join(",")].join("\n");
 }

@@ -10,7 +10,7 @@ interface EditableRecord extends Omit<SwimRecord, "id" | "created_at" | "record_
   isNew?: boolean;
 }
 
-export type RecordFlagType = "is_national" | "is_provincial" | "is_split" | "is_relay_split" | "is_new";
+export type RecordFlagType = "is_national" | "is_current_national" | "is_provincial" | "is_current_provincial" | "is_split" | "is_relay_split" | "is_new";
 
 interface RecordTableProps {
   records: SwimRecord[];
@@ -37,7 +37,9 @@ export default function RecordTable({ records, onSave, onDelete }: RecordTablePr
       location: r.location,
       sort_order: r.sort_order,
       is_national: r.is_national || false,
+      is_current_national: r.is_current_national || false,
       is_provincial: r.is_provincial || false,
+      is_current_provincial: r.is_current_provincial || false,
       is_split: r.is_split || false,
       is_relay_split: r.is_relay_split || false,
       is_new: r.is_new || false,
@@ -106,7 +108,9 @@ export default function RecordTable({ records, onSave, onDelete }: RecordTablePr
       location: null,
       sort_order: editableRecords.length,
       is_national: false,
+      is_current_national: false,
       is_provincial: false,
+      is_current_provincial: false,
       is_split: false,
       is_relay_split: false,
       is_new: false,
@@ -140,7 +144,9 @@ export default function RecordTable({ records, onSave, onDelete }: RecordTablePr
       location: null,
       sort_order: editableRecords.length + i,
       is_national: false,
+      is_current_national: false,
       is_provincial: false,
+      is_current_provincial: false,
       is_split: false,
       is_relay_split: false,
       is_new: false,
@@ -346,7 +352,9 @@ export default function RecordTable({ records, onSave, onDelete }: RecordTablePr
                         <div className="absolute right-0 top-full z-10 mt-1 w-44 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-700">
                           {[
                             { key: "is_national" as RecordFlagType, label: "Canadian Record", icon: "🍁" },
+                            { key: "is_current_national" as RecordFlagType, label: "Current National", icon: "🇨🇦" },
                             { key: "is_provincial" as RecordFlagType, label: "Provincial Record", icon: "🏅" },
+                            { key: "is_current_provincial" as RecordFlagType, label: "Current Provincial", icon: "🥇" },
                             { key: "is_split" as RecordFlagType, label: "Split Time", icon: "⏱️" },
                             { key: "is_relay_split" as RecordFlagType, label: "Relay Split", icon: "🏊" },
                             { key: "is_new" as RecordFlagType, label: "New Record", icon: "⭐" },

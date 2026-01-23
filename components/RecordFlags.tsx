@@ -3,7 +3,9 @@
 interface RecordFlagsProps {
   record: {
     is_national?: boolean;
+    is_current_national?: boolean;
     is_provincial?: boolean;
+    is_current_provincial?: boolean;
     is_split?: boolean;
     is_relay_split?: boolean;
     is_new?: boolean;
@@ -14,7 +16,9 @@ interface RecordFlagsProps {
 
 export const FLAG_DEFINITIONS = [
   { key: "is_national" as const, label: "Canadian Record", icon: "🍁", color: "text-red-600" },
+  { key: "is_current_national" as const, label: "Current National", icon: "🇨🇦", color: "text-red-600" },
   { key: "is_provincial" as const, label: "Provincial Record", icon: "🏅", color: "text-amber-600" },
+  { key: "is_current_provincial" as const, label: "Current Provincial", icon: "🥇", color: "text-amber-600" },
   { key: "is_split" as const, label: "Split Time", icon: "⏱️", color: "text-blue-600" },
   { key: "is_relay_split" as const, label: "Relay Split", icon: "🏊", color: "text-cyan-600" },
   { key: "is_new" as const, label: "New Record", icon: "⭐", color: "text-yellow-500" },
