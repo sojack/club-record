@@ -132,6 +132,11 @@ export default function BulkUploadPage() {
           record_date: r.record_date,
           location: r.location,
           sort_order: idx,
+          is_national: r.is_national,
+          is_provincial: r.is_provincial,
+          is_split: r.is_split,
+          is_relay_split: r.is_relay_split,
+          is_new: r.is_new,
         }))
       );
 

@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { formatMsToTime, parseTimeToMs, isValidTimeFormat } from "@/lib/time-utils";
 import type { SwimRecord } from "@/types/database";
+import RecordFlags from "./RecordFlags";
 
 interface EditableRecord extends Omit<SwimRecord, "id" | "created_at" | "record_list_id"> {
   id?: string;
   isNew?: boolean;
 }
+
+export type RecordFlagType = "is_national" | "is_provincial" | "is_split" | "is_relay_split" | "is_new";
 
 interface RecordTableProps {
   records: SwimRecord[];
@@ -33,11 +36,36 @@ export default function RecordTable({ records, onSave, onDelete }: RecordTablePr
       record_date: r.record_date,
       location: r.location,
       sort_order: r.sort_order,
+      is_national: r.is_national || false,
+      is_provincial: r.is_provincial || false,
+      is_split: r.is_split || false,
+      is_relay_split: r.is_relay_split || false,
+      is_new: r.is_new || false,
     }))
   );
   const [saving, setSaving] = useState(false);
   const [editingCell, setEditingCell] = useState<{ index: number; field: string } | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
+  const [flagMenuOpen, setFlagMenuOpen] = useState<number | null>(null);
+  const flagMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close flag menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (flagMenuRef.current && !flagMenuRef.current.contains(event.target as Node)) {
+        setFlagMenuOpen(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const toggleFlag = (index: number, flag: RecordFlagType) => {
+    const newRecords = [...editableRecords];
+    newRecords[index][flag] = !newRecords[index][flag];
+    setEditableRecords(newRecords);
+    setHasChanges(true);
+  };
 
   const handleCellChange = (index: number, field: keyof EditableRecord, value: string) => {
     const newRecords = [...editableRecords];
@@ -77,6 +105,11 @@ export default function RecordTable({ records, onSave, onDelete }: RecordTablePr
       record_date: null,
       location: null,
       sort_order: editableRecords.length,
+      is_national: false,
+      is_provincial: false,
+      is_split: false,
+      is_relay_split: false,
+      is_new: false,
       isNew: true,
     };
     setEditableRecords([...editableRecords, newRecord]);
@@ -106,6 +139,11 @@ export default function RecordTable({ records, onSave, onDelete }: RecordTablePr
       record_date: null,
       location: null,
       sort_order: editableRecords.length + i,
+      is_national: false,
+      is_provincial: false,
+      is_split: false,
+      is_relay_split: false,
+      is_new: false,
       isNew: true,
     }));
 
@@ -202,6 +240,9 @@ export default function RecordTable({ records, onSave, onDelete }: RecordTablePr
               <th className="px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                 Location
               </th>
+              <th className="px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                Flags
+              </th>
               <th className="w-24 px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                 Actions
               </th>
@@ -288,6 +329,49 @@ export default function RecordTable({ records, onSave, onDelete }: RecordTablePr
                   />
                 </td>
                 <td className="px-3 py-2">
+                  <div className="relative flex items-center gap-1">
+                    <RecordFlags record={record} size="sm" />
+                    <div ref={flagMenuOpen === index ? flagMenuRef : null}>
+                      <button
+                        type="button"
+                        onClick={() => setFlagMenuOpen(flagMenuOpen === index ? null : index)}
+                        className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
+                        title="Edit flags"
+                      >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                        </svg>
+                      </button>
+                      {flagMenuOpen === index && (
+                        <div className="absolute right-0 top-full z-10 mt-1 w-44 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-700">
+                          {[
+                            { key: "is_national" as RecordFlagType, label: "Canadian Record", icon: "🍁" },
+                            { key: "is_provincial" as RecordFlagType, label: "Provincial Record", icon: "🏅" },
+                            { key: "is_split" as RecordFlagType, label: "Split Time", icon: "⏱️" },
+                            { key: "is_relay_split" as RecordFlagType, label: "Relay Split", icon: "🏊" },
+                            { key: "is_new" as RecordFlagType, label: "New Record", icon: "⭐" },
+                          ].map((flag) => (
+                            <button
+                              key={flag.key}
+                              type="button"
+                              onClick={() => toggleFlag(index, flag.key)}
+                              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-600"
+                            >
+                              <span>{flag.icon}</span>
+                              <span className="flex-1 text-gray-700 dark:text-gray-200">{flag.label}</span>
+                              {record[flag.key] && (
+                                <svg className="h-4 w-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </td>
+                <td className="px-3 py-2">
                   <button
                     type="button"
                     onClick={() => removeRow(index)}
@@ -301,7 +385,7 @@ export default function RecordTable({ records, onSave, onDelete }: RecordTablePr
             {editableRecords.length === 0 && (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={8}
                   className="px-3 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
                 >
                   No records yet. Add a row or import from CSV.

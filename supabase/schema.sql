@@ -33,6 +33,11 @@ CREATE TABLE records (
   record_date DATE,
   location TEXT,
   sort_order INTEGER DEFAULT 0,
+  is_national BOOLEAN DEFAULT FALSE,
+  is_provincial BOOLEAN DEFAULT FALSE,
+  is_split BOOLEAN DEFAULT FALSE,
+  is_relay_split BOOLEAN DEFAULT FALSE,
+  is_new BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

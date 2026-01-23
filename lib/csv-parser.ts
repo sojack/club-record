@@ -7,6 +7,11 @@ export interface CSVRecord {
   swimmer_name: string;
   record_date: string | null;
   location: string | null;
+  is_national: boolean;
+  is_provincial: boolean;
+  is_split: boolean;
+  is_relay_split: boolean;
+  is_new: boolean;
 }
 
 interface RawCSVRow {
@@ -43,6 +48,17 @@ export function parseRecordsCSV(csvContent: string): {
     swimmer: ["swimmer", "swimmer_name", "swimmername", "name", "athlete"],
     date: ["date", "record_date", "recorddate"],
     location: ["location", "meet", "venue"],
+    is_national: ["is_national", "national", "canadian_record"],
+    is_provincial: ["is_provincial", "provincial", "provincial_record"],
+    is_split: ["is_split", "split", "split_time"],
+    is_relay_split: ["is_relay_split", "relay_split", "relay"],
+    is_new: ["is_new", "new", "new_record"],
+  };
+
+  const parseBoolean = (value: string | undefined): boolean => {
+    if (!value) return false;
+    const lower = value.toLowerCase().trim();
+    return lower === "true" || lower === "yes" || lower === "1" || lower === "x";
   };
 
   const findColumn = (row: RawCSVRow, options: string[]): string | undefined => {
@@ -60,6 +76,11 @@ export function parseRecordsCSV(csvContent: string): {
     const swimmer = findColumn(row, columnMaps.swimmer);
     const date = findColumn(row, columnMaps.date);
     const location = findColumn(row, columnMaps.location);
+    const is_national = findColumn(row, columnMaps.is_national);
+    const is_provincial = findColumn(row, columnMaps.is_provincial);
+    const is_split = findColumn(row, columnMaps.is_split);
+    const is_relay_split = findColumn(row, columnMaps.is_relay_split);
+    const is_new = findColumn(row, columnMaps.is_new);
 
     if (!event || !time || !swimmer) {
       errors.push(
@@ -80,6 +101,11 @@ export function parseRecordsCSV(csvContent: string): {
       swimmer_name: swimmer.trim(),
       record_date: date?.trim() || null,
       location: location?.trim() || null,
+      is_national: parseBoolean(is_national),
+      is_provincial: parseBoolean(is_provincial),
+      is_split: parseBoolean(is_split),
+      is_relay_split: parseBoolean(is_relay_split),
+      is_new: parseBoolean(is_new),
     });
   });
 
@@ -90,7 +116,7 @@ export function parseRecordsCSV(csvContent: string): {
  * Generate a CSV template string
  */
 export function generateCSVTemplate(): string {
-  const headers = ["Event", "Time", "Swimmer", "Date", "Location"];
-  const exampleRow = ["50 Free", "24.56", "John Smith", "2024-03-15", "City Championships"];
+  const headers = ["Event", "Time", "Swimmer", "Date", "Location", "is_National", "is_Provincial", "is_Split", "is_RelaySplit", "is_New"];
+  const exampleRow = ["50 Free", "24.56", "John Smith", "2024-03-15", "City Championships", "", "", "", "", ""];
   return [headers.join(","), exampleRow.join(",")].join("\n");
 }

@@ -1,0 +1,8 @@
+-- Migration: Add record flag columns
+-- Run this on existing databases to add the new flag columns
+
+ALTER TABLE records ADD COLUMN IF NOT EXISTS is_national BOOLEAN DEFAULT FALSE;
+ALTER TABLE records ADD COLUMN IF NOT EXISTS is_provincial BOOLEAN DEFAULT FALSE;
+ALTER TABLE records ADD COLUMN IF NOT EXISTS is_split BOOLEAN DEFAULT FALSE;
+ALTER TABLE records ADD COLUMN IF NOT EXISTS is_relay_split BOOLEAN DEFAULT FALSE;
+ALTER TABLE records ADD COLUMN IF NOT EXISTS is_new BOOLEAN DEFAULT FALSE;

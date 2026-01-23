@@ -133,7 +133,7 @@ export default function RecordListsPage() {
 
     // Build CSV content
     const csvRows = [
-      ["Record List", "Event", "Time", "Swimmer", "Date", "Location"].join(","),
+      ["Record List", "Event", "Time", "Swimmer", "Date", "Location", "is_National", "is_Provincial", "is_Split", "is_RelaySplit", "is_New"].join(","),
     ];
 
     for (const record of records as SwimRecord[]) {
@@ -145,6 +145,11 @@ export default function RecordListsPage() {
         `"${record.swimmer_name.replace(/"/g, '""')}"`,
         `"${record.record_date || ""}"`,
         `"${(record.location || "").replace(/"/g, '""')}"`,
+        record.is_national ? "true" : "",
+        record.is_provincial ? "true" : "",
+        record.is_split ? "true" : "",
+        record.is_relay_split ? "true" : "",
+        record.is_new ? "true" : "",
       ];
       csvRows.push(row.join(","));
     }

@@ -78,6 +78,11 @@ export default function RecordListDetailPage() {
           record_date: r.record_date,
           location: r.location,
           sort_order: existingRecords.length + i,
+          is_national: r.is_national || false,
+          is_provincial: r.is_provincial || false,
+          is_split: r.is_split || false,
+          is_relay_split: r.is_relay_split || false,
+          is_new: r.is_new || false,
         }))
       );
 
@@ -98,6 +103,11 @@ export default function RecordListDetailPage() {
           record_date: record.record_date,
           location: record.location,
           sort_order: record.sort_order,
+          is_national: record.is_national || false,
+          is_provincial: record.is_provincial || false,
+          is_split: record.is_split || false,
+          is_relay_split: record.is_relay_split || false,
+          is_new: record.is_new || false,
         })
         .eq("id", record.id);
 
@@ -132,6 +142,11 @@ export default function RecordListDetailPage() {
         record_date: r.record_date,
         location: r.location,
         sort_order: records.length + i,
+        is_national: r.is_national || false,
+        is_provincial: r.is_provincial || false,
+        is_split: r.is_split || false,
+        is_relay_split: r.is_relay_split || false,
+        is_new: r.is_new || false,
       }))
     );
 

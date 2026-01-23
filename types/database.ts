@@ -26,6 +26,11 @@ export interface SwimRecord {
   record_date: string | null;
   location: string | null;
   sort_order: number;
+  is_national: boolean;
+  is_provincial: boolean;
+  is_split: boolean;
+  is_relay_split: boolean;
+  is_new: boolean;
   created_at: string;
 }
 

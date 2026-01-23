@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { SwimRecord } from "@/types/database";
 import { formatMsToTime } from "@/lib/time-utils";
+import RecordFlags, { RecordFlagsLegend } from "@/components/RecordFlags";
 
 interface PublicRecordSearchProps {
   records: SwimRecord[];
@@ -24,9 +25,14 @@ export default function PublicRecordSearch({
     );
   });
 
+  // Check if any records have flags
+  const hasAnyFlags = records.some(
+    (r) => r.is_national || r.is_provincial || r.is_split || r.is_relay_split || r.is_new
+  );
+
   return (
     <>
-      <div className="mb-6">
+      <div className="mb-6 space-y-3">
         <input
           type="text"
           placeholder="Search by event, swimmer, or location..."
@@ -34,6 +40,7 @@ export default function PublicRecordSearch({
           onChange={(e) => setSearch(e.target.value)}
           className="w-full max-w-md rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
         />
+        {hasAnyFlags && <RecordFlagsLegend />}
       </div>
 
       <div className="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-800">
@@ -64,8 +71,13 @@ export default function PublicRecordSearch({
                   <td className="px-4 py-3 text-gray-900 dark:text-white">
                     {record.event_name}
                   </td>
-                  <td className="px-4 py-3 font-mono text-gray-900 dark:text-white">
-                    {record.time_ms > 0 ? formatTime(record.time_ms) : "-"}
+                  <td className="px-4 py-3 text-gray-900 dark:text-white">
+                    <span className="flex items-center gap-1">
+                      <span className="font-mono">
+                        {record.time_ms > 0 ? formatTime(record.time_ms) : "-"}
+                      </span>
+                      <RecordFlags record={record} size="sm" />
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-gray-900 dark:text-white">
                     {record.swimmer_name || "-"}
@@ -108,8 +120,11 @@ export default function PublicRecordSearch({
               <span className="font-medium text-gray-900 dark:text-white">
                 {record.event_name}
               </span>
-              <span className="font-mono text-blue-600 dark:text-blue-400">
-                {record.time_ms > 0 ? formatTime(record.time_ms) : "-"}
+              <span className="flex items-center gap-1">
+                <span className="font-mono text-blue-600 dark:text-blue-400">
+                  {record.time_ms > 0 ? formatTime(record.time_ms) : "-"}
+                </span>
+                <RecordFlags record={record} size="sm" />
               </span>
             </div>
             <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
