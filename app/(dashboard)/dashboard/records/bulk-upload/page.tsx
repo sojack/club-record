@@ -24,8 +24,8 @@ function parseFilename(filename: string): {
   // Remove extension
   const nameWithoutExt = filename.replace(/\.csv$/i, "");
 
-  // Replace underscores and hyphens with spaces for title
-  const title = nameWithoutExt.replace(/[_-]/g, " ").trim();
+  // Replace underscores with spaces for title (keep hyphens for age ranges like 18-24)
+  const title = nameWithoutExt.replace(/_/g, " ").trim();
 
   // Generate slug from filename
   const slug = nameWithoutExt
@@ -384,7 +384,7 @@ export default function BulkUploadPage() {
       <div className="rounded-xl bg-gray-100 p-6 dark:bg-gray-800/50">
         <h3 className="font-medium text-gray-900 dark:text-white">Tips</h3>
         <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-gray-600 dark:text-gray-400">
-          <li>Filenames are converted to list titles (underscores/hyphens become spaces)</li>
+          <li>Filenames are converted to list titles (underscores become spaces, hyphens preserved)</li>
           <li>Course type (SCM, LCM, SCY) is auto-detected from filename</li>
           <li>You can edit titles and course types before uploading</li>
           <li>Each CSV needs: Event, Time, Swimmer columns (Date, Location optional)</li>
