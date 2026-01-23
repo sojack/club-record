@@ -6,7 +6,12 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useClub } from "@/contexts/ClubContext";
 
-export default function Sidebar() {
+interface SidebarProps {
+  collapsed: boolean;
+  onToggle: () => void;
+}
+
+export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { clubs, selectedClub, setSelectedClub, isLoading } = useClub();
@@ -34,33 +39,53 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="flex h-screen w-64 flex-col border-r border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+    <aside
+      className={`flex h-screen flex-col border-r border-gray-200 bg-white transition-all duration-300 dark:border-gray-700 dark:bg-gray-800 ${
+        collapsed ? "w-16" : "w-64"
+      }`}
+    >
       {/* Club Selector */}
-      <div className="relative border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-        <button
-          onClick={() => setDropdownOpen(!dropdownOpen)}
-          className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700"
-        >
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold text-gray-900 dark:text-white">
-              {isLoading ? "Loading..." : selectedClub?.short_name || "Select Club"}
-            </div>
-            <div className="truncate text-xs text-gray-500 dark:text-gray-400">
-              {selectedClub?.full_name || ""}
-            </div>
-          </div>
-          <svg
-            className={`h-5 w-5 text-gray-400 transition-transform ${dropdownOpen ? "rotate-180" : ""}`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+      <div className="relative border-b border-gray-200 px-2 py-3 dark:border-gray-700">
+        {collapsed ? (
+          <button
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+            className="flex h-10 w-full items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+            title={selectedClub?.short_name || "Select Club"}
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
+            <span className="text-lg font-semibold text-gray-900 dark:text-white">
+              {selectedClub?.short_name?.charAt(0) || "?"}
+            </span>
+          </button>
+        ) : (
+          <button
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+            className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-semibold text-gray-900 dark:text-white">
+                {isLoading ? "Loading..." : selectedClub?.short_name || "Select Club"}
+              </div>
+              <div className="truncate text-xs text-gray-500 dark:text-gray-400">
+                {selectedClub?.full_name || ""}
+              </div>
+            </div>
+            <svg
+              className={`h-5 w-5 text-gray-400 transition-transform ${dropdownOpen ? "rotate-180" : ""}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        )}
 
         {dropdownOpen && (
-          <div className="absolute left-4 right-4 top-full z-10 mt-1 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-700">
+          <div
+            className={`absolute top-full z-10 mt-1 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-700 ${
+              collapsed ? "left-2 w-48" : "left-4 right-4"
+            }`}
+          >
             <div className="max-h-64 overflow-y-auto py-1">
               {clubs.map((club) => (
                 <button
@@ -106,27 +131,30 @@ export default function Sidebar() {
         )}
       </div>
 
-      <nav className="flex-1 space-y-1 p-4">
+      <nav className={`flex-1 space-y-1 ${collapsed ? "p-2" : "p-4"}`}>
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              title={collapsed ? item.label : undefined}
+              className={`flex items-center rounded-lg text-sm font-medium transition-colors ${
+                collapsed ? "justify-center px-2 py-2" : "gap-3 px-3 py-2"
+              } ${
                 isActive
                   ? "bg-blue-50 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
                   : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
               }`}
             >
-              <span>{item.icon}</span>
-              {item.label}
+              <span className={collapsed ? "text-lg" : ""}>{item.icon}</span>
+              {!collapsed && item.label}
             </Link>
           );
         })}
       </nav>
 
-      {selectedClub && (
+      {selectedClub && !collapsed && (
         <div className="border-t border-gray-200 p-4 dark:border-gray-700">
           <div className="mb-2 text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
             Public URL
@@ -137,13 +165,42 @@ export default function Sidebar() {
         </div>
       )}
 
-      <div className="border-t border-gray-200 p-4 dark:border-gray-700">
+      <div className={`border-t border-gray-200 dark:border-gray-700 ${collapsed ? "p-2" : "p-4"}`}>
         <button
           onClick={handleLogout}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+          title={collapsed ? "Log out" : undefined}
+          className={`flex w-full items-center rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 ${
+            collapsed ? "justify-center px-2 py-2" : "gap-3 px-3 py-2"
+          }`}
         >
-          <span>🚪</span>
-          Log out
+          <span className={collapsed ? "text-lg" : ""}>🚪</span>
+          {!collapsed && "Log out"}
+        </button>
+      </div>
+
+      {/* Collapse/Expand Toggle */}
+      <div className={`border-t border-gray-200 dark:border-gray-700 ${collapsed ? "p-2" : "p-4"}`}>
+        <button
+          onClick={onToggle}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className={`flex w-full items-center rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 ${
+            collapsed ? "justify-center px-2 py-2" : "gap-3 px-3 py-2"
+          }`}
+        >
+          <svg
+            className={`h-5 w-5 transition-transform ${collapsed ? "rotate-180" : ""}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
+            />
+          </svg>
+          {!collapsed && "Collapse"}
         </button>
       </div>
     </aside>
