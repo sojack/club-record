@@ -15,6 +15,32 @@ export default function PublicRecordSearch({
   const formatTime = formatMsToTime;
   const [search, setSearch] = useState("");
 
+  // Format partial dates: "2024" -> "2024", "2024-03" -> "Mar 2024", "2024-03-15" -> "Mar 15, 2024"
+  const formatDate = (dateStr: string | null): string => {
+    if (!dateStr) return "-";
+
+    // Year only
+    if (/^\d{4}$/.test(dateStr)) {
+      return dateStr;
+    }
+
+    // Year and month
+    if (/^\d{4}-\d{2}$/.test(dateStr)) {
+      const [year, month] = dateStr.split("-");
+      const date = new Date(parseInt(year), parseInt(month) - 1);
+      return date.toLocaleDateString(undefined, { month: "short", year: "numeric" });
+    }
+
+    // Full date
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    }
+
+    // Fallback
+    return dateStr;
+  };
+
   const filteredRecords = records.filter((record) => {
     if (!search.trim()) return true;
     const searchLower = search.toLowerCase();
@@ -83,9 +109,7 @@ export default function PublicRecordSearch({
                     {record.swimmer_name || "-"}
                   </td>
                   <td className="hidden px-4 py-3 text-gray-500 dark:text-gray-400 md:table-cell">
-                    {record.record_date
-                      ? new Date(record.record_date).toLocaleDateString()
-                      : "-"}
+                    {formatDate(record.record_date)}
                   </td>
                   <td className="hidden px-4 py-3 text-gray-500 dark:text-gray-400 lg:table-cell">
                     {record.location || "-"}
@@ -132,8 +156,7 @@ export default function PublicRecordSearch({
             </div>
             {(record.record_date || record.location) && (
               <div className="mt-1 text-xs text-gray-500 dark:text-gray-500">
-                {record.record_date &&
-                  new Date(record.record_date).toLocaleDateString()}
+                {record.record_date && formatDate(record.record_date)}
                 {record.record_date && record.location && " • "}
                 {record.location}
               </div>

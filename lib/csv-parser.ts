@@ -1,6 +1,54 @@
 import Papa from "papaparse";
 import { parseTimeToMs } from "./time-utils";
 
+/**
+ * Normalize date strings to consistent format
+ * Keeps partial dates as-is: "2024", "2024-03", "2024-03-15"
+ */
+function normalizeDate(value: string | undefined): string | null {
+  if (!value || !value.trim()) return null;
+
+  const trimmed = value.trim();
+
+  // Year only: "2024" - keep as-is
+  if (/^\d{4}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  // Year and month: normalize to "YYYY-MM" format
+  const yearMonthMatch = trimmed.match(/^(\d{4})[-/](\d{1,2})$/);
+  if (yearMonthMatch) {
+    const year = yearMonthMatch[1];
+    const month = yearMonthMatch[2].padStart(2, "0");
+    return `${year}-${month}`;
+  }
+
+  // Full date: normalize to "YYYY-MM-DD" format
+  const fullDateMatch = trimmed.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if (fullDateMatch) {
+    const year = fullDateMatch[1];
+    const month = fullDateMatch[2].padStart(2, "0");
+    const day = fullDateMatch[3].padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  // Try to parse other formats like "March 2024" or "Mar 15, 2024"
+  const parsed = new Date(trimmed);
+  if (!isNaN(parsed.getTime())) {
+    const year = parsed.getFullYear();
+    const month = String(parsed.getMonth() + 1).padStart(2, "0");
+    const day = String(parsed.getDate()).padStart(2, "0");
+    // If original didn't have a day, return year-month only
+    if (/^[a-zA-Z]+\s+\d{4}$/.test(trimmed)) {
+      return `${year}-${month}`;
+    }
+    return `${year}-${month}-${day}`;
+  }
+
+  // Return as-is if we can't parse
+  return trimmed;
+}
+
 export interface CSVRecord {
   event_name: string;
   time_ms: number;
@@ -105,7 +153,7 @@ export function parseRecordsCSV(csvContent: string): {
       event_name: event.trim(),
       time_ms,
       swimmer_name: swimmer.trim(),
-      record_date: date?.trim() || null,
+      record_date: normalizeDate(date),
       location: location?.trim() || null,
       is_national: parseBoolean(is_national),
       is_current_national: parseBoolean(is_current_national),

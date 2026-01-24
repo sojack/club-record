@@ -30,7 +30,7 @@ CREATE TABLE records (
   event_name TEXT NOT NULL,
   time_ms INTEGER NOT NULL,
   swimmer_name TEXT NOT NULL,
-  record_date DATE,
+  record_date TEXT,
   location TEXT,
   sort_order INTEGER DEFAULT 0,
   is_national BOOLEAN DEFAULT FALSE,
