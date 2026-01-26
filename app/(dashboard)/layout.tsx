@@ -19,11 +19,12 @@ export default async function DashboardLayout({
   }
 
   // Query clubs through club_members to get role info
-  const { data: memberships } = await supabase
+  const { data: memberships, error } = await supabase
     .from("club_members")
     .select("role, clubs(*)")
     .eq("user_id", user.id)
     .order("created_at", { ascending: true });
+
 
   // Transform to ClubWithMembership[]
   const clubs: ClubWithMembership[] = (memberships || [])
