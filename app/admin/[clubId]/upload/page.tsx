@@ -113,7 +113,6 @@ export default function AdminUploadPage({
     setUploading(true);
     setProgress({ current: 0, total: parsedFiles.length });
 
-    const supabase = createClient();
     const success: string[] = [];
     const failed: string[] = [];
 
@@ -126,45 +125,42 @@ export default function AdminUploadPage({
         continue;
       }
 
-      const { data: listData, error: listError } = await supabase
-        .from("record_lists")
-        .insert({
-          club_id: club.id,
-          title: file.title,
-          slug: file.slug,
-          course_type: file.courseType,
-        })
-        .select()
-        .single();
+      try {
+        const response = await fetch("/api/admin/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            clubId: club.id,
+            title: file.title,
+            slug: file.slug,
+            courseType: file.courseType,
+            records: file.records.map((r, idx) => ({
+              event_name: r.event_name,
+              time_ms: r.time_ms,
+              swimmer_name: r.swimmer_name,
+              record_date: r.record_date,
+              location: r.location,
+              sort_order: idx,
+              is_national: r.is_national,
+              is_current_national: r.is_current_national,
+              is_provincial: r.is_provincial,
+              is_current_provincial: r.is_current_provincial,
+              is_split: r.is_split,
+              is_relay_split: r.is_relay_split,
+              is_new: r.is_new,
+            })),
+          }),
+        });
 
-      if (listError) {
-        failed.push(`${file.title}: ${listError.message}`);
-        continue;
-      }
+        const result = await response.json();
 
-      const { error: recordsError } = await supabase.from("records").insert(
-        file.records.map((r, idx) => ({
-          record_list_id: listData.id,
-          event_name: r.event_name,
-          time_ms: r.time_ms,
-          swimmer_name: r.swimmer_name,
-          record_date: r.record_date,
-          location: r.location,
-          sort_order: idx,
-          is_national: r.is_national,
-          is_current_national: r.is_current_national,
-          is_provincial: r.is_provincial,
-          is_current_provincial: r.is_current_provincial,
-          is_split: r.is_split,
-          is_relay_split: r.is_relay_split,
-          is_new: r.is_new,
-        }))
-      );
-
-      if (recordsError) {
-        failed.push(`${file.title}: Records failed - ${recordsError.message}`);
-      } else {
-        success.push(`${file.title}: ${file.records.length} records`);
+        if (!response.ok) {
+          failed.push(`${file.title}: ${result.error}`);
+        } else {
+          success.push(`${file.title}: ${file.records.length} records`);
+        }
+      } catch (error) {
+        failed.push(`${file.title}: ${error instanceof Error ? error.message : "Unknown error"}`);
       }
     }
 
