@@ -1,15 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
-export default function LoginPage() {
-  const router = useRouter();
+export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -19,9 +17,8 @@ export default function LoginPage() {
 
     const supabase = createClient();
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
     });
 
     if (error) {
@@ -30,9 +27,43 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/dashboard");
-    router.refresh();
+    setSuccess(true);
+    setLoading(false);
   };
+
+  if (success) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-900">
+        <div className="w-full max-w-md text-center">
+          <div className="mb-8">
+            <Link href="/" className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+              Club Record
+            </Link>
+          </div>
+
+          <div className="rounded-xl bg-white p-8 shadow-sm dark:bg-gray-800">
+            <div className="mb-4 text-5xl">📧</div>
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
+              Check your email
+            </h1>
+            <p className="mt-4 text-gray-600 dark:text-gray-400">
+              We sent a password reset link to <strong>{email}</strong>
+            </p>
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-500">
+              Click the link in the email to reset your password. If you don&apos;t see it, check your spam folder.
+            </p>
+
+            <Link
+              href="/login"
+              className="mt-6 inline-block text-blue-600 hover:underline dark:text-blue-400"
+            >
+              Back to login
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-900">
@@ -42,10 +73,10 @@ export default function LoginPage() {
             Club Record
           </Link>
           <h1 className="mt-6 text-2xl font-semibold text-gray-900 dark:text-white">
-            Welcome back
+            Reset your password
           </h1>
           <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Log in to manage your club records
+            Enter your email and we&apos;ll send you a reset link
           </p>
         </div>
 
@@ -70,31 +101,7 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-            />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between">
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Password
-              </label>
-              <Link
-                href="/forgot-password"
-                className="text-sm text-blue-600 hover:underline dark:text-blue-400"
-              >
-                Forgot password?
-              </Link>
-            </div>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              placeholder="you@example.com"
             />
           </div>
 
@@ -103,14 +110,14 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full rounded-lg bg-blue-600 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            {loading ? "Logging in..." : "Log in"}
+            {loading ? "Sending..." : "Send reset link"}
           </button>
         </form>
 
         <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
-          Don&apos;t have an account?{" "}
-          <Link href="/signup" className="text-blue-600 hover:underline dark:text-blue-400">
-            Sign up
+          Remember your password?{" "}
+          <Link href="/login" className="text-blue-600 hover:underline dark:text-blue-400">
+            Log in
           </Link>
         </p>
       </div>
