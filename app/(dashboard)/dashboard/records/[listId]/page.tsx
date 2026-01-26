@@ -85,6 +85,7 @@ export default function RecordListDetailPage() {
           is_split: r.is_split || false,
           is_relay_split: r.is_relay_split || false,
           is_new: r.is_new || false,
+          is_world_record: r.is_world_record || false,
         }))
       );
 
@@ -112,6 +113,7 @@ export default function RecordListDetailPage() {
           is_split: record.is_split || false,
           is_relay_split: record.is_relay_split || false,
           is_new: record.is_new || false,
+          is_world_record: record.is_world_record || false,
         })
         .eq("id", record.id);
 
@@ -153,6 +155,7 @@ export default function RecordListDetailPage() {
         is_split: r.is_split || false,
         is_relay_split: r.is_relay_split || false,
         is_new: r.is_new || false,
+        is_world_record: r.is_world_record || false,
       }))
     );
 

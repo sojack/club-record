@@ -10,7 +10,7 @@ interface EditableRecord extends Omit<SwimRecord, "id" | "created_at" | "record_
   isNew?: boolean;
 }
 
-export type RecordFlagType = "is_national" | "is_current_national" | "is_provincial" | "is_current_provincial" | "is_split" | "is_relay_split" | "is_new";
+export type RecordFlagType = "is_national" | "is_current_national" | "is_provincial" | "is_current_provincial" | "is_split" | "is_relay_split" | "is_new" | "is_world_record";
 
 interface RecordTableProps {
   records: SwimRecord[];
@@ -44,6 +44,7 @@ export default function RecordTable({ records, onSave, onDelete, readOnly = fals
       is_split: r.is_split || false,
       is_relay_split: r.is_relay_split || false,
       is_new: r.is_new || false,
+      is_world_record: r.is_world_record || false,
     }))
   );
   const [saving, setSaving] = useState(false);
@@ -115,6 +116,7 @@ export default function RecordTable({ records, onSave, onDelete, readOnly = fals
       is_split: false,
       is_relay_split: false,
       is_new: false,
+      is_world_record: false,
       isNew: true,
     };
     setEditableRecords([...editableRecords, newRecord]);
@@ -151,6 +153,7 @@ export default function RecordTable({ records, onSave, onDelete, readOnly = fals
       is_split: false,
       is_relay_split: false,
       is_new: false,
+      is_world_record: false,
       isNew: true,
     }));
 
@@ -383,6 +386,7 @@ export default function RecordTable({ records, onSave, onDelete, readOnly = fals
                         {flagMenuOpen === index && (
                           <div className="absolute right-0 top-full z-10 mt-1 w-44 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-700">
                             {[
+                              { key: "is_world_record" as RecordFlagType, label: "World Record", icon: "👑" },
                               { key: "is_national" as RecordFlagType, label: "Canadian Record", icon: "🍁" },
                               { key: "is_current_national" as RecordFlagType, label: "Current National", icon: "🇨🇦" },
                               { key: "is_provincial" as RecordFlagType, label: "Provincial Record", icon: "🏅" },

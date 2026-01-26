@@ -9,12 +9,14 @@ interface RecordFlagsProps {
     is_split?: boolean;
     is_relay_split?: boolean;
     is_new?: boolean;
+    is_world_record?: boolean;
   };
   size?: "sm" | "md";
   showEmpty?: boolean;
 }
 
 export const FLAG_DEFINITIONS = [
+  { key: "is_world_record" as const, label: "World Record", icon: "👑", color: "text-yellow-500" },
   { key: "is_national" as const, label: "Canadian Record", icon: "🍁", color: "text-red-600" },
   { key: "is_current_national" as const, label: "Current Canadian Record", icon: "🇨🇦", color: "text-red-600" },
   { key: "is_provincial" as const, label: "Provincial Record", icon: "🏅", color: "text-amber-600" },

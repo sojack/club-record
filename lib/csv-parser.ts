@@ -62,6 +62,7 @@ export interface CSVRecord {
   is_split: boolean;
   is_relay_split: boolean;
   is_new: boolean;
+  is_world_record: boolean;
 }
 
 interface RawCSVRow {
@@ -105,6 +106,7 @@ export function parseRecordsCSV(csvContent: string): {
     is_split: ["is_split", "split", "split_time"],
     is_relay_split: ["is_relay_split", "relay_split", "relay"],
     is_new: ["is_new", "new", "new_record"],
+    is_world_record: ["is_world_record", "world_record", "world", "wr"],
   };
 
   const parseBoolean = (value: string | undefined): boolean => {
@@ -135,6 +137,7 @@ export function parseRecordsCSV(csvContent: string): {
     const is_split = findColumn(row, columnMaps.is_split);
     const is_relay_split = findColumn(row, columnMaps.is_relay_split);
     const is_new = findColumn(row, columnMaps.is_new);
+    const is_world_record = findColumn(row, columnMaps.is_world_record);
 
     if (!event || !time || !swimmer) {
       errors.push(
@@ -162,6 +165,7 @@ export function parseRecordsCSV(csvContent: string): {
       is_split: parseBoolean(is_split),
       is_relay_split: parseBoolean(is_relay_split),
       is_new: parseBoolean(is_new),
+      is_world_record: parseBoolean(is_world_record),
     });
   });
 
@@ -172,7 +176,7 @@ export function parseRecordsCSV(csvContent: string): {
  * Generate a CSV template string
  */
 export function generateCSVTemplate(): string {
-  const headers = ["Event", "Time", "Swimmer", "Date", "Location", "is_National", "is_Current_National", "is_Provincial", "is_Current_Provincial", "is_Split", "is_RelaySplit", "is_New"];
-  const exampleRow = ["50 Free", "24.56", "John Smith", "2024-03-15", "City Championships", "", "", "", "", "", "", ""];
+  const headers = ["Event", "Time", "Swimmer", "Date", "Location", "is_World_Record", "is_National", "is_Current_National", "is_Provincial", "is_Current_Provincial", "is_Split", "is_RelaySplit", "is_New"];
+  const exampleRow = ["50 Free", "24.56", "John Smith", "2024-03-15", "City Championships", "", "", "", "", "", "", "", ""];
   return [headers.join(","), exampleRow.join(",")].join("\n");
 }

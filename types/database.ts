@@ -51,6 +51,7 @@ export interface SwimRecord {
   is_split: boolean;
   is_relay_split: boolean;
   is_new: boolean;
+  is_world_record: boolean;
   created_at: string;
 }
 
