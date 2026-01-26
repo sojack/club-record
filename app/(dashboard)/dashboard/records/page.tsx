@@ -8,7 +8,7 @@ import { formatMsToTime } from "@/lib/time-utils";
 import type { RecordList, SwimRecord } from "@/types/database";
 
 export default function RecordListsPage() {
-  const { selectedClub, isLoading: clubLoading } = useClub();
+  const { selectedClub, isLoading: clubLoading, canEdit } = useClub();
   const [recordLists, setRecordLists] = useState<(RecordList & { records: { count: number }[] })[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -218,75 +218,89 @@ export default function RecordListsPage() {
           >
             {isExporting ? "Exporting..." : "Export CSV"}
           </button>
-          <Link
-            href="/dashboard/records/bulk-upload"
-            className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-          >
-            Bulk Upload
-          </Link>
-          <Link
-            href="/dashboard/records/new"
-            className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-          >
-            Create New List
-          </Link>
+          {canEdit && (
+            <>
+              <Link
+                href="/dashboard/records/bulk-upload"
+                className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+              >
+                Bulk Upload
+              </Link>
+              <Link
+                href="/dashboard/records/new"
+                className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+              >
+                Create New List
+              </Link>
+            </>
+          )}
         </div>
       </div>
 
+      {!canEdit && (
+        <div className="mb-6 rounded-lg bg-amber-50 p-4 text-sm text-amber-700 dark:bg-amber-900/50 dark:text-amber-400">
+          You have read-only access to this club. Contact the owner if you need editing permissions.
+        </div>
+      )}
+
       {recordLists.length > 0 ? (
         <>
-          {/* Selection Toolbar */}
-          <div className="mb-4 flex items-center justify-between rounded-lg bg-gray-100 px-4 py-2 dark:bg-gray-700">
-            <div className="flex items-center gap-4">
-              <label className="flex cursor-pointer items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={selectedIds.length === recordLists.length && recordLists.length > 0}
-                  onChange={toggleSelectAll}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-sm text-gray-700 dark:text-gray-300">
-                  {selectedIds.length === 0
-                    ? "Select all"
-                    : `${selectedIds.length} selected`}
-                </span>
-              </label>
+          {/* Selection Toolbar - only show for editors/owners */}
+          {canEdit && (
+            <div className="mb-4 flex items-center justify-between rounded-lg bg-gray-100 px-4 py-2 dark:bg-gray-700">
+              <div className="flex items-center gap-4">
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.length === recordLists.length && recordLists.length > 0}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    {selectedIds.length === 0
+                      ? "Select all"
+                      : `${selectedIds.length} selected`}
+                  </span>
+                </label>
+                {selectedIds.length > 0 && (
+                  <button
+                    onClick={() => setSelectedIds([])}
+                    className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  >
+                    Clear selection
+                  </button>
+                )}
+              </div>
               {selectedIds.length > 0 && (
                 <button
-                  onClick={() => setSelectedIds([])}
-                  className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  onClick={() => setShowDeleteModal(true)}
+                  className="rounded-lg border border-red-300 px-4 py-1.5 text-sm text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
                 >
-                  Clear selection
+                  Delete {selectedIds.length} {selectedIds.length === 1 ? "list" : "lists"}
                 </button>
               )}
             </div>
-            {selectedIds.length > 0 && (
-              <button
-                onClick={() => setShowDeleteModal(true)}
-                className="rounded-lg border border-red-300 px-4 py-1.5 text-sm text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
-              >
-                Delete {selectedIds.length} {selectedIds.length === 1 ? "list" : "lists"}
-              </button>
-            )}
-          </div>
+          )}
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {recordLists.map((list) => (
               <div
                 key={list.id}
                 className={`relative rounded-xl bg-white p-6 shadow-sm transition-shadow hover:shadow-md dark:bg-gray-800 ${
-                  selectedIds.includes(list.id) ? "ring-2 ring-blue-500" : ""
+                  canEdit && selectedIds.includes(list.id) ? "ring-2 ring-blue-500" : ""
                 }`}
               >
-                <div className="absolute left-4 top-4">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.includes(list.id)}
-                    onChange={() => toggleSelection(list.id)}
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                </div>
-                <Link href={`/dashboard/records/${list.id}`} className="block pl-6">
+                {canEdit && (
+                  <div className="absolute left-4 top-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(list.id)}
+                      onChange={() => toggleSelection(list.id)}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </div>
+                )}
+                <Link href={`/dashboard/records/${list.id}`} className={`block ${canEdit ? "pl-6" : ""}`}>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                     {list.title}
                   </h3>
@@ -313,14 +327,19 @@ export default function RecordListsPage() {
             No record lists yet
           </h3>
           <p className="mt-2 text-gray-500 dark:text-gray-400">
-            Create your first record list to start tracking club records.
+            {canEdit
+              ? "Create your first record list to start tracking club records."
+              : "No record lists have been created for this club yet."
+            }
           </p>
-          <Link
-            href="/dashboard/records/new"
-            className="mt-4 inline-block rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700"
-          >
-            Create Record List
-          </Link>
+          {canEdit && (
+            <Link
+              href="/dashboard/records/new"
+              className="mt-4 inline-block rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700"
+            >
+              Create Record List
+            </Link>
+          )}
         </div>
       )}
 

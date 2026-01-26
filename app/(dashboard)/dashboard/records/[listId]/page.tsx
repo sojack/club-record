@@ -14,7 +14,7 @@ export default function RecordListDetailPage() {
   const router = useRouter();
   const params = useParams();
   const listId = params.listId as string;
-  const { selectedClub } = useClub();
+  const { selectedClub, canEdit } = useClub();
 
   const [recordList, setRecordList] = useState<RecordList | null>(null);
   const [records, setRecords] = useState<SwimRecord[]>([]);
@@ -231,7 +231,7 @@ export default function RecordListDetailPage() {
           &larr; Back to Record Lists
         </Link>
 
-        {isEditing ? (
+        {isEditing && canEdit ? (
           <div className="mt-4 space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -288,23 +288,31 @@ export default function RecordListDetailPage() {
                 </span>
               </div>
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setIsEditing(true)}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="rounded-lg border border-red-300 px-4 py-2 text-sm text-red-700 hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20"
-              >
-                Delete
-              </button>
-            </div>
+            {canEdit && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="rounded-lg border border-red-300 px-4 py-2 text-sm text-red-700 hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20"
+                >
+                  Delete
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      {!canEdit && (
+        <div className="mb-6 rounded-lg bg-amber-50 p-4 text-sm text-amber-700 dark:bg-amber-900/50 dark:text-amber-400">
+          You have read-only access to this club. Contact the owner if you need editing permissions.
+        </div>
+      )}
 
       {message && (
         <div
@@ -323,15 +331,17 @@ export default function RecordListDetailPage() {
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             Records
           </h2>
-          <button
-            onClick={() => setShowCSVUpload(!showCSVUpload)}
-            className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-          >
-            {showCSVUpload ? "Hide CSV Import" : "Import CSV"}
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => setShowCSVUpload(!showCSVUpload)}
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+            >
+              {showCSVUpload ? "Hide CSV Import" : "Import CSV"}
+            </button>
+          )}
         </div>
 
-        {showCSVUpload && (
+        {showCSVUpload && canEdit && (
           <div className="mb-6">
             <CSVUploader onUpload={handleCSVUpload} />
           </div>
@@ -341,6 +351,7 @@ export default function RecordListDetailPage() {
           records={records}
           onSave={handleSaveRecords}
           onDelete={handleDeleteRecord}
+          readOnly={!canEdit}
         />
       </div>
 

@@ -8,6 +8,24 @@ export interface Club {
   created_at: string;
 }
 
+export type ClubMemberRole = 'owner' | 'editor' | 'viewer';
+
+export interface ClubMember {
+  id: string;
+  club_id: string;
+  user_id: string;
+  role: ClubMemberRole;
+  created_at: string;
+}
+
+export interface ClubMemberWithEmail extends ClubMember {
+  email: string;
+}
+
+export interface ClubWithMembership extends Club {
+  membership?: { role: ClubMemberRole };
+}
+
 export interface RecordList {
   id: string;
   club_id: string;
@@ -49,6 +67,11 @@ export interface Database {
         Row: Club;
         Insert: Omit<Club, "id" | "created_at">;
         Update: Partial<Omit<Club, "id" | "created_at">>;
+      };
+      club_members: {
+        Row: ClubMember;
+        Insert: Omit<ClubMember, "id" | "created_at">;
+        Update: Partial<Omit<ClubMember, "id" | "created_at">>;
       };
       record_lists: {
         Row: RecordList;

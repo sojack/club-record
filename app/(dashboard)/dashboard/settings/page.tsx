@@ -8,7 +8,7 @@ import { useClub } from "@/contexts/ClubContext";
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { selectedClub, isLoading: clubLoading } = useClub();
+  const { selectedClub, isLoading: clubLoading, isOwner } = useClub();
   const [shortName, setShortName] = useState("");
   const [fullName, setFullName] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
@@ -25,7 +25,7 @@ export default function SettingsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedClub) return;
+    if (!selectedClub || !isOwner) return;
 
     setSaving(true);
     setMessage(null);
@@ -86,6 +86,12 @@ export default function SettingsPage() {
         </p>
       </div>
 
+      {!isOwner && (
+        <div className="mb-6 rounded-lg bg-amber-50 p-4 text-sm text-amber-700 dark:bg-amber-900/50 dark:text-amber-400">
+          Only the club owner can modify settings. You have read-only access.
+        </div>
+      )}
+
       <div className="max-w-2xl rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
         <h2 className="mb-6 text-xl font-semibold text-gray-900 dark:text-white">
           Club Profile
@@ -118,7 +124,8 @@ export default function SettingsPage() {
               onChange={(e) => setShortName(e.target.value)}
               required
               maxLength={10}
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              disabled={!isOwner}
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
             />
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               Short abbreviation for your club (e.g., RHAC)
@@ -138,7 +145,8 @@ export default function SettingsPage() {
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               required
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              disabled={!isOwner}
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
             />
           </div>
 
@@ -155,7 +163,8 @@ export default function SettingsPage() {
               value={logoUrl}
               onChange={(e) => setLogoUrl(e.target.value)}
               placeholder="https://example.com/logo.png"
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              disabled={!isOwner}
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
             />
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               Direct link to your club logo image
@@ -174,13 +183,15 @@ export default function SettingsPage() {
             </p>
           </div>
 
-          <button
-            type="submit"
-            disabled={saving}
-            className="rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {saving ? "Saving..." : "Save Changes"}
-          </button>
+          {isOwner && (
+            <button
+              type="submit"
+              disabled={saving}
+              className="rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+          )}
         </form>
       </div>
     </div>

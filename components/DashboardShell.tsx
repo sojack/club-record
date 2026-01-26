@@ -3,11 +3,11 @@
 import { ReactNode, useState, useEffect } from "react";
 import { ClubProvider } from "@/contexts/ClubContext";
 import Sidebar from "@/components/Sidebar";
-import type { Club } from "@/types/database";
+import type { ClubWithMembership } from "@/types/database";
 
 interface DashboardShellProps {
   children: ReactNode;
-  clubs: Club[];
+  clubs: ClubWithMembership[];
 }
 
 export default function DashboardShell({ children, clubs }: DashboardShellProps) {

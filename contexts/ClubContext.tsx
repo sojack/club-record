@@ -1,13 +1,17 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import type { Club } from "@/types/database";
+import type { ClubWithMembership, ClubMemberRole } from "@/types/database";
 
 interface ClubContextType {
-  clubs: Club[];
-  selectedClub: Club | null;
-  setSelectedClub: (club: Club) => void;
+  clubs: ClubWithMembership[];
+  selectedClub: ClubWithMembership | null;
+  setSelectedClub: (club: ClubWithMembership) => void;
   isLoading: boolean;
+  currentRole: ClubMemberRole | null;
+  isOwner: boolean;
+  isEditor: boolean;
+  canEdit: boolean;
 }
 
 const ClubContext = createContext<ClubContextType | undefined>(undefined);
@@ -16,11 +20,11 @@ const SELECTED_CLUB_KEY = "selectedClubId";
 
 interface ClubProviderProps {
   children: ReactNode;
-  clubs: Club[];
+  clubs: ClubWithMembership[];
 }
 
 export function ClubProvider({ children, clubs }: ClubProviderProps) {
-  const [selectedClub, setSelectedClubState] = useState<Club | null>(null);
+  const [selectedClub, setSelectedClubState] = useState<ClubWithMembership | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -43,10 +47,15 @@ export function ClubProvider({ children, clubs }: ClubProviderProps) {
     setIsLoading(false);
   }, [clubs]);
 
-  const setSelectedClub = (club: Club) => {
+  const setSelectedClub = (club: ClubWithMembership) => {
     setSelectedClubState(club);
     localStorage.setItem(SELECTED_CLUB_KEY, club.id);
   };
+
+  const currentRole = selectedClub?.membership?.role ?? null;
+  const isOwner = currentRole === 'owner';
+  const isEditor = currentRole === 'editor';
+  const canEdit = isOwner || isEditor;
 
   return (
     <ClubContext.Provider
@@ -55,6 +64,10 @@ export function ClubProvider({ children, clubs }: ClubProviderProps) {
         selectedClub,
         setSelectedClub,
         isLoading,
+        currentRole,
+        isOwner,
+        isEditor,
+        canEdit,
       }}
     >
       {children}
