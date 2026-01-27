@@ -35,6 +35,28 @@ export default function SignupPage() {
     setStep("club");
   };
 
+  const handleSkip = async () => {
+    setError(null);
+    setLoading(true);
+
+    const supabase = createClient();
+
+    // Create user account only
+    const { error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (authError) {
+      setError(authError.message);
+      setLoading(false);
+      return;
+    }
+
+    router.push("/dashboard");
+    router.refresh();
+  };
+
   const handleClubSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -97,7 +119,7 @@ export default function SignupPage() {
               Set up your club
             </h1>
             <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Tell us about your swim club
+              Create a club to manage records, or skip if you&apos;re joining an existing club
             </p>
           </div>
 
@@ -171,7 +193,8 @@ export default function SignupPage() {
               <button
                 type="button"
                 onClick={() => setStep("credentials")}
-                className="flex-1 rounded-lg border border-gray-300 py-2 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+                disabled={loading}
+                className="flex-1 rounded-lg border border-gray-300 py-2 text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
               >
                 Back
               </button>
@@ -183,6 +206,29 @@ export default function SignupPage() {
                 {loading ? "Creating..." : "Create Club"}
               </button>
             </div>
+
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300 dark:border-gray-600" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-gray-50 px-2 text-gray-500 dark:bg-gray-900 dark:text-gray-400">
+                  or
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSkip}
+              disabled={loading}
+              className="w-full rounded-lg border border-gray-300 py-2 text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+            >
+              {loading ? "Creating account..." : "Skip for now"}
+            </button>
+            <p className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400">
+              You can create a club later or wait to be invited to one
+            </p>
           </form>
         </div>
       </div>
