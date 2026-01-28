@@ -75,6 +75,7 @@ export default async function RecordPage({ params }: RecordPageProps) {
     .order("sort_order", { ascending: true });
 
   const typedRecords = (records || []) as SwimRecord[];
+  const currentRecordsCount = typedRecords.filter(r => r.is_current !== false).length;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -97,7 +98,7 @@ export default async function RecordPage({ params }: RecordPageProps) {
               {typedRecordList.course_type}
             </span>
             <span className="text-sm text-gray-500 dark:text-gray-400">
-              {typedRecords.length} records
+              {currentRecordsCount} records
             </span>
           </div>
         </div>

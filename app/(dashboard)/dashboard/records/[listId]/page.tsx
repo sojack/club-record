@@ -59,7 +59,7 @@ export default function RecordListDetailPage() {
   }, [loadData]);
 
   const handleSaveRecords = async (
-    editableRecords: Array<Omit<SwimRecord, "id" | "created_at" | "record_list_id"> & { id?: string; isNew?: boolean }>
+    editableRecords: Array<Omit<SwimRecord, "id" | "created_at" | "record_list_id"> & { id?: string; isNew?: boolean; _breakingRecordId?: string }>
   ) => {
     const supabase = createClient();
 
@@ -67,17 +67,21 @@ export default function RecordListDetailPage() {
     const newRecords = editableRecords.filter((r) => !r.id || r.isNew);
     const existingRecords = editableRecords.filter((r) => r.id && !r.isNew);
 
-    // Insert new records
-    if (newRecords.length > 0) {
-      const { error } = await supabase.from("records").insert(
-        newRecords.map((r, i) => ({
+    // Track which old records need to be marked as superseded
+    const recordsToSupersede: Array<{ oldId: string; newId: string }> = [];
+
+    // Insert new records one by one to get their IDs for linking
+    for (const r of newRecords) {
+      const { data: insertedRecord, error } = await supabase
+        .from("records")
+        .insert({
           record_list_id: listId,
           event_name: r.event_name,
           time_ms: r.time_ms,
           swimmer_name: r.swimmer_name,
           record_date: r.record_date,
           location: r.location,
-          sort_order: existingRecords.length + i,
+          sort_order: r.sort_order,
           is_national: r.is_national || false,
           is_current_national: r.is_current_national || false,
           is_provincial: r.is_provincial || false,
@@ -86,8 +90,35 @@ export default function RecordListDetailPage() {
           is_relay_split: r.is_relay_split || false,
           is_new: r.is_new || false,
           is_world_record: r.is_world_record || false,
-        }))
-      );
+          is_current: true,
+          superseded_by: null,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
+
+      // If this new record is breaking an old one, track it for linking
+      if (r._breakingRecordId && insertedRecord) {
+        recordsToSupersede.push({
+          oldId: r._breakingRecordId,
+          newId: insertedRecord.id,
+        });
+      }
+    }
+
+    // Mark old records as superseded
+    for (const { oldId, newId } of recordsToSupersede) {
+      const { error } = await supabase
+        .from("records")
+        .update({
+          superseded_by: newId,
+          is_current: false,
+        })
+        .eq("id", oldId);
 
       if (error) {
         setMessage({ type: "error", text: error.message });
@@ -139,6 +170,9 @@ export default function RecordListDetailPage() {
   const handleCSVUpload = async (csvRecords: CSVRecord[]) => {
     const supabase = createClient();
 
+    // Filter to only count current records for sort_order
+    const currentRecordsCount = records.filter(r => r.is_current !== false).length;
+
     const { error } = await supabase.from("records").insert(
       csvRecords.map((r, i) => ({
         record_list_id: listId,
@@ -147,7 +181,7 @@ export default function RecordListDetailPage() {
         swimmer_name: r.swimmer_name,
         record_date: r.record_date,
         location: r.location,
-        sort_order: records.length + i,
+        sort_order: currentRecordsCount + i,
         is_national: r.is_national || false,
         is_current_national: r.is_current_national || false,
         is_provincial: r.is_provincial || false,
@@ -156,6 +190,8 @@ export default function RecordListDetailPage() {
         is_relay_split: r.is_relay_split || false,
         is_new: r.is_new || false,
         is_world_record: r.is_world_record || false,
+        is_current: true,
+        superseded_by: null,
       }))
     );
 

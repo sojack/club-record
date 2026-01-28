@@ -52,7 +52,14 @@ export interface SwimRecord {
   is_relay_split: boolean;
   is_new: boolean;
   is_world_record: boolean;
+  superseded_by: string | null;  // ID of the record that broke this one
+  is_current: boolean;           // false if this record has been broken
   created_at: string;
+}
+
+export interface RecordWithHistory {
+  current: SwimRecord;
+  history: SwimRecord[];  // Previous records that were broken, ordered by record_date desc
 }
 
 export interface StandardEvent {

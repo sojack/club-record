@@ -54,9 +54,9 @@ export default function HomePage() {
         <div className="mt-20 grid gap-8 md:grid-cols-3">
           <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
             <div className="mb-4 text-3xl">📊</div>
-            <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
+            <h2 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
               Easy CSV Import
-            </h3>
+            </h2>
             <p className="text-gray-600 dark:text-gray-400">
               Upload your existing records via CSV. Automatic time format
               detection handles any format.
@@ -64,9 +64,9 @@ export default function HomePage() {
           </div>
           <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
             <div className="mb-4 text-3xl">🏊</div>
-            <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
+            <h2 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
               Multiple Record Lists
-            </h3>
+            </h2>
             <p className="text-gray-600 dark:text-gray-400">
               Create separate lists for age groups, genders, or course types
               (SCM, SCY, LCM).
@@ -74,9 +74,9 @@ export default function HomePage() {
           </div>
           <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
             <div className="mb-4 text-3xl">🔗</div>
-            <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
+            <h2 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
               Shareable Links
-            </h3>
+            </h2>
             <p className="text-gray-600 dark:text-gray-400">
               Each record list gets a clean public URL to share with swimmers
               and families.
