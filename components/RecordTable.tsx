@@ -55,26 +55,28 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
     historyByRecordId.set(key, records);
   });
 
+  const mapRecordToEditable = (r: SwimRecord): EditableRecord => ({
+    id: r.id,
+    event_name: r.event_name,
+    time_ms: r.time_ms,
+    swimmer_name: r.swimmer_name,
+    record_date: r.record_date,
+    location: r.location,
+    sort_order: r.sort_order,
+    is_national: r.is_national || false,
+    is_current_national: r.is_current_national || false,
+    is_provincial: r.is_provincial || false,
+    is_current_provincial: r.is_current_provincial || false,
+    is_split: r.is_split || false,
+    is_relay_split: r.is_relay_split || false,
+    is_new: r.is_new || false,
+    is_world_record: r.is_world_record || false,
+    superseded_by: r.superseded_by,
+    is_current: r.is_current ?? true,
+  });
+
   const [editableRecords, setEditableRecords] = useState<EditableRecord[]>(
-    currentRecords.map((r) => ({
-      id: r.id,
-      event_name: r.event_name,
-      time_ms: r.time_ms,
-      swimmer_name: r.swimmer_name,
-      record_date: r.record_date,
-      location: r.location,
-      sort_order: r.sort_order,
-      is_national: r.is_national || false,
-      is_current_national: r.is_current_national || false,
-      is_provincial: r.is_provincial || false,
-      is_current_provincial: r.is_current_provincial || false,
-      is_split: r.is_split || false,
-      is_relay_split: r.is_relay_split || false,
-      is_new: r.is_new || false,
-      is_world_record: r.is_world_record || false,
-      superseded_by: r.superseded_by,
-      is_current: r.is_current ?? true,
-    }))
+    currentRecords.map(mapRecordToEditable)
   );
   const [saving, setSaving] = useState(false);
   const [editingCell, setEditingCell] = useState<{ index: number; field: string } | null>(null);
@@ -82,6 +84,13 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
   const [flagMenuOpen, setFlagMenuOpen] = useState<number | null>(null);
   const [expandedHistory, setExpandedHistory] = useState<Set<string>>(new Set());
   const flagMenuRef = useRef<HTMLDivElement>(null);
+
+  // Sync editableRecords when records prop changes (e.g., after save)
+  useEffect(() => {
+    const newCurrentRecords = records.filter((r) => r.is_current !== false);
+    setEditableRecords(newCurrentRecords.map(mapRecordToEditable));
+    setHasChanges(false);
+  }, [records]);
 
   // Close flag menu when clicking outside
   useEffect(() => {
