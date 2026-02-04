@@ -19,17 +19,24 @@ interface RecordTableProps {
   onDelete: (id: string) => Promise<void>;
   onBreakRecord?: (oldRecordId: string, newRecordId: string) => Promise<void>;
   readOnly?: boolean;
+  courseType?: "LCM" | "SCM" | "SCY";
 }
 
-const STANDARD_EVENTS = [
-  "50 Free", "100 Free", "200 Free", "400 Free", "800 Free", "1500 Free",
-  "50 Back", "100 Back", "200 Back",
-  "50 Breast", "100 Breast", "200 Breast",
-  "50 Fly", "100 Fly", "200 Fly",
-  "200 IM", "400 IM",
-];
+function getStandardEvents(courseType?: string): string[] {
+  const events = [
+    "50 Free", "100 Free", "200 Free", "400 Free", "800 Free", "1500 Free",
+    "50 Back", "100 Back", "200 Back",
+    "50 Breast", "100 Breast", "200 Breast",
+    "50 Fly", "100 Fly", "200 Fly",
+  ];
+  if (courseType !== "LCM") {
+    events.push("100 IM");
+  }
+  events.push("200 IM", "400 IM");
+  return events;
+}
 
-export default function RecordTable({ records, onSave, onDelete, onBreakRecord, readOnly = false }: RecordTableProps) {
+export default function RecordTable({ records, onSave, onDelete, onBreakRecord, readOnly = false, courseType }: RecordTableProps) {
   // Separate current and history records
   const currentRecords = records.filter((r) => r.is_current !== false);
   const historyRecords = records.filter((r) => r.is_current === false);
@@ -219,8 +226,9 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
   };
 
   const addStandardEvents = () => {
+    const standardEvents = getStandardEvents(courseType);
     const existingEvents = new Set(editableRecords.map((r) => r.event_name.toLowerCase()));
-    const newEvents = STANDARD_EVENTS.filter(
+    const newEvents = standardEvents.filter(
       (event) => !existingEvents.has(event.toLowerCase())
     );
 

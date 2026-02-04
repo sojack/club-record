@@ -57,7 +57,7 @@ INSERT INTO standard_events (name, sort_order) VALUES
   ('50 Back', 7), ('100 Back', 8), ('200 Back', 9),
   ('50 Breast', 10), ('100 Breast', 11), ('200 Breast', 12),
   ('50 Fly', 13), ('100 Fly', 14), ('200 Fly', 15),
-  ('200 IM', 16), ('400 IM', 17);
+  ('100 IM', 16), ('200 IM', 17), ('400 IM', 18);
 
 -- Enable Row Level Security
 ALTER TABLE clubs ENABLE ROW LEVEL SECURITY;

@@ -391,6 +391,7 @@ export default function RecordListDetailPage() {
           onSave={handleSaveRecords}
           onDelete={handleDeleteRecord}
           readOnly={!canEdit}
+          courseType={recordList.course_type as "LCM" | "SCM" | "SCY"}
         />
       </div>
 
