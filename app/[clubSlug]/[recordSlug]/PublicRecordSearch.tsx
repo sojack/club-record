@@ -69,7 +69,8 @@ export default function PublicRecordSearch({
 
     // Full date
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-      const date = new Date(dateStr);
+      const [year, month, day] = dateStr.split("-");
+      const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
       return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
     }
 
