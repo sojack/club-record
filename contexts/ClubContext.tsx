@@ -12,6 +12,7 @@ interface ClubContextType {
   isOwner: boolean;
   isEditor: boolean;
   canEdit: boolean;
+  isAdmin: boolean;
 }
 
 const ClubContext = createContext<ClubContextType | undefined>(undefined);
@@ -21,9 +22,10 @@ const SELECTED_CLUB_KEY = "selectedClubId";
 interface ClubProviderProps {
   children: ReactNode;
   clubs: ClubWithMembership[];
+  isAdmin?: boolean;
 }
 
-export function ClubProvider({ children, clubs }: ClubProviderProps) {
+export function ClubProvider({ children, clubs, isAdmin = false }: ClubProviderProps) {
   const [selectedClub, setSelectedClubState] = useState<ClubWithMembership | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -68,6 +70,7 @@ export function ClubProvider({ children, clubs }: ClubProviderProps) {
         isOwner,
         isEditor,
         canEdit,
+        isAdmin,
       }}
     >
       {children}

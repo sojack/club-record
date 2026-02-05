@@ -8,9 +8,10 @@ import type { ClubWithMembership } from "@/types/database";
 interface DashboardShellProps {
   children: ReactNode;
   clubs: ClubWithMembership[];
+  isAdmin?: boolean;
 }
 
-export default function DashboardShell({ children, clubs }: DashboardShellProps) {
+export default function DashboardShell({ children, clubs, isAdmin }: DashboardShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Persist collapsed state to localStorage
@@ -29,7 +30,7 @@ export default function DashboardShell({ children, clubs }: DashboardShellProps)
   };
 
   return (
-    <ClubProvider clubs={clubs}>
+    <ClubProvider clubs={clubs} isAdmin={isAdmin}>
       <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
         <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
         <main className="flex-1 overflow-auto">

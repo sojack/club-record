@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { ClubWithMembership, Club, ClubMemberRole } from "@/types/database";
 import DashboardShell from "@/components/DashboardShell";
 
@@ -18,13 +19,36 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
+  // Check if user is admin
+  const isAdmin = user.email === process.env.ADMIN_EMAIL;
+
+  // If admin, auto-ensure owner membership for all clubs
+  if (isAdmin) {
+    const adminClient = createAdminClient();
+
+    // Fetch all clubs
+    const { data: allClubs } = await adminClient.from("clubs").select("id");
+
+    if (allClubs && allClubs.length > 0) {
+      // Upsert owner membership for admin in all clubs
+      const membershipsToUpsert = allClubs.map((club) => ({
+        club_id: club.id,
+        user_id: user.id,
+        role: "owner" as ClubMemberRole,
+      }));
+
+      await adminClient
+        .from("club_members")
+        .upsert(membershipsToUpsert, { onConflict: "club_id,user_id" });
+    }
+  }
+
   // Query clubs through club_members to get role info
-  const { data: memberships, error } = await supabase
+  const { data: memberships } = await supabase
     .from("club_members")
     .select("role, clubs(*)")
     .eq("user_id", user.id)
     .order("created_at", { ascending: true });
-
 
   // Transform to ClubWithMembership[]
   const clubs: ClubWithMembership[] = (memberships || [])
@@ -38,7 +62,7 @@ export default async function DashboardLayout({
     });
 
   return (
-    <DashboardShell clubs={clubs}>
+    <DashboardShell clubs={clubs} isAdmin={isAdmin}>
       {children}
     </DashboardShell>
   );
