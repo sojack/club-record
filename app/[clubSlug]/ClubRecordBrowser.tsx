@@ -15,6 +15,14 @@ interface ClubRecordBrowserProps {
 }
 
 const COURSE_TYPE_ORDER: RecordList["course_type"][] = ["SCM", "SCY", "LCM"];
+const GENDER_ORDER: Array<RecordList["gender"]> = ["male", "female"];
+
+// Get display label for a group (course type + gender)
+function getGroupLabel(courseType: string, gender: string | null): string {
+  if (!gender) return courseType;
+  const genderLabel = gender === "male" ? "Male" : "Female";
+  return `${courseType} ${genderLabel}`;
+}
 
 export default function ClubRecordBrowser({
   recordLists,
@@ -28,11 +36,32 @@ export default function ClubRecordBrowser({
 
   const selectedList = recordLists.find((l) => l.id === selectedListId);
 
-  // Group lists by course type in defined order
-  const groupedLists = COURSE_TYPE_ORDER.map((courseType) => ({
-    courseType,
-    lists: recordLists.filter((l) => l.course_type === courseType),
-  })).filter((group) => group.lists.length > 0);
+  // Group lists by course type and gender
+  const groupedLists: Array<{ label: string; lists: RecordListWithCount[] }> = [];
+
+  for (const courseType of COURSE_TYPE_ORDER) {
+    for (const gender of GENDER_ORDER) {
+      const lists = recordLists.filter(
+        (l) => l.course_type === courseType && l.gender === gender
+      );
+      if (lists.length > 0) {
+        groupedLists.push({
+          label: getGroupLabel(courseType, gender),
+          lists,
+        });
+      }
+    }
+    // Also include lists without gender set (for backwards compatibility)
+    const listsWithoutGender = recordLists.filter(
+      (l) => l.course_type === courseType && !l.gender
+    );
+    if (listsWithoutGender.length > 0) {
+      groupedLists.push({
+        label: courseType,
+        lists: listsWithoutGender,
+      });
+    }
+  }
 
   const handleListChange = async (listId: string) => {
     setSelectedListId(listId);
@@ -73,7 +102,7 @@ export default function ClubRecordBrowser({
           className="w-full max-w-md rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
         >
           {groupedLists.map((group) => (
-            <optgroup key={group.courseType} label={group.courseType}>
+            <optgroup key={group.label} label={group.label}>
               {group.lists.map((list) => (
                 <option key={list.id} value={list.id}>
                   {list.title} ({list.records?.[0]?.count || 0} records)

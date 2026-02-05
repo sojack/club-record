@@ -309,6 +309,11 @@ export default function RecordListsPage() {
                     <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
                       {list.course_type}
                     </span>
+                    {list.gender && (
+                      <span className="rounded bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+                        {list.gender === "male" ? "Male" : "Female"}
+                      </span>
+                    )}
                     <span className="text-sm text-gray-500 dark:text-gray-400">
                       {list.records?.[0]?.count || 0} records
                     </span>

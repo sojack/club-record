@@ -24,6 +24,7 @@ export default function RecordListDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editCourseType, setEditCourseType] = useState<"LCM" | "SCM" | "SCY">("LCM");
+  const [editGender, setEditGender] = useState<"male" | "female">("male");
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const loadData = useCallback(async () => {
@@ -39,6 +40,7 @@ export default function RecordListDetailPage() {
       setRecordList(listData as RecordList);
       setEditTitle(listData.title);
       setEditCourseType(listData.course_type as "LCM" | "SCM" | "SCY");
+      setEditGender(listData.gender as "male" | "female" || "male");
     }
 
     const { data: recordsData } = await supabase
@@ -213,6 +215,7 @@ export default function RecordListDetailPage() {
       .update({
         title: editTitle,
         course_type: editCourseType,
+        gender: editGender,
       })
       .eq("id", listId);
 
@@ -297,6 +300,19 @@ export default function RecordListDetailPage() {
                 <option value="SCY">Short Course Yards (SCY)</option>
               </select>
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Gender
+              </label>
+              <select
+                value={editGender}
+                onChange={(e) => setEditGender(e.target.value as "male" | "female")}
+                className="mt-1 block rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              >
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={handleUpdateList}
@@ -322,6 +338,11 @@ export default function RecordListDetailPage() {
                 <span className="rounded bg-blue-100 px-2 py-0.5 text-sm font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
                   {recordList.course_type}
                 </span>
+                {recordList.gender && (
+                  <span className="rounded bg-purple-100 px-2 py-0.5 text-sm font-medium text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+                    {recordList.gender === "male" ? "Male" : "Female"}
+                  </span>
+                )}
                 <span className="text-sm text-gray-500 dark:text-gray-400">
                   /{selectedClub?.slug}/{recordList.slug}
                 </span>

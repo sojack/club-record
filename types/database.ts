@@ -32,6 +32,7 @@ export interface RecordList {
   title: string;
   slug: string;
   course_type: "SCM" | "SCY" | "LCM";
+  gender: "male" | "female" | null;
   created_at: string;
 }
 
