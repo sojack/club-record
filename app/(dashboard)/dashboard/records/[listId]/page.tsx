@@ -126,6 +126,13 @@ export default function RecordListDetailPage() {
         setMessage({ type: "error", text: error.message });
         return;
       }
+
+      // Re-parent any older history records that pointed to the old record
+      // so the full chain is visible when looking up the new current record
+      await supabase
+        .from("records")
+        .update({ superseded_by: newId })
+        .eq("superseded_by", oldId);
     }
 
     // Update existing records
