@@ -8,20 +8,12 @@ export default function HomePage() {
           <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
             Club Record
           </div>
-          <div className="space-x-4">
-            <Link
-              href="/login"
-              className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
-            >
-              Log in
-            </Link>
-            <Link
-              href="/signup"
-              className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-            >
-              Sign up
-            </Link>
-          </div>
+          <Link
+            href="/login"
+            className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+          >
+            Club Manager Login
+          </Link>
         </nav>
       </header>
 
@@ -35,18 +27,57 @@ export default function HomePage() {
             Import records via CSV, manage multiple age groups, and share
             public links with your community.
           </p>
+        </div>
+
+        <div className="mx-auto mt-12 max-w-2xl">
+          <div className="rounded-xl bg-white p-8 shadow-sm dark:bg-gray-800">
+            <h2 className="mb-4 text-center text-xl font-semibold text-gray-900 dark:text-white">
+              Find Your Club
+            </h2>
+            <p className="mb-6 text-center text-gray-600 dark:text-gray-400">
+              Swimmers, parents, and fans — go directly to your club&apos;s records page.
+            </p>
+            <div className="space-y-3">
+              {[
+                { slug: "rhac", abbr: "RHAC", name: "Richmond Hill Aquatic Club" },
+                { slug: "auro", abbr: "AURO", name: "Aurora Masterducks" },
+                { slug: "eomac", abbr: "EOMAC", name: "Etobicoke Masters Swimming" },
+              ].map((club) => (
+                <Link
+                  key={club.slug}
+                  href={`/${club.slug}`}
+                  className="flex items-center justify-between rounded-lg border border-gray-200 px-5 py-4 transition-colors hover:border-blue-300 hover:bg-blue-50 dark:border-gray-700 dark:hover:border-blue-600 dark:hover:bg-blue-900/20"
+                >
+                  <div>
+                    <span className="font-semibold text-gray-900 dark:text-white">{club.abbr}</span>
+                    <span className="ml-2 text-gray-600 dark:text-gray-400">{club.name}</span>
+                  </div>
+                  <span className="text-gray-400">&rarr;</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="mx-auto mt-16 max-w-md rounded-xl border border-blue-200 bg-blue-50 p-8 text-center dark:border-blue-800 dark:bg-blue-900/30">
+          <h2 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
+            Club Manager?
+          </h2>
+          <p className="mb-6 text-gray-600 dark:text-gray-400">
+            Sign up to create and manage record boards for your club.
+          </p>
           <div className="flex justify-center gap-4">
             <Link
               href="/signup"
-              className="rounded-lg bg-blue-600 px-8 py-3 text-lg font-medium text-white hover:bg-blue-700"
+              className="rounded-lg bg-blue-600 px-6 py-2.5 font-medium text-white hover:bg-blue-700"
             >
-              Get Started Free
+              Sign Up
             </Link>
             <Link
               href="/login"
-              className="rounded-lg border border-gray-300 px-8 py-3 text-lg font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+              className="rounded-lg border border-gray-300 px-6 py-2.5 font-medium text-gray-700 hover:bg-white dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
             >
-              Log in
+              Log In
             </Link>
           </div>
         </div>
