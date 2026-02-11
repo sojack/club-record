@@ -13,9 +13,14 @@ interface EditableRecord extends Omit<SwimRecord, "id" | "created_at" | "record_
 
 export type RecordFlagType = "is_national" | "is_current_national" | "is_provincial" | "is_current_provincial" | "is_split" | "is_relay_split" | "is_new" | "is_world_record";
 
+export interface HistoryFlagUpdate {
+  id: string;
+  flags: Record<RecordFlagType, boolean>;
+}
+
 interface RecordTableProps {
   records: SwimRecord[];
-  onSave: (records: EditableRecord[]) => Promise<void>;
+  onSave: (records: EditableRecord[], historyUpdates?: HistoryFlagUpdate[]) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onBreakRecord?: (oldRecordId: string, newRecordId: string) => Promise<void>;
   readOnly?: boolean;
@@ -89,6 +94,8 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
   const [editingCell, setEditingCell] = useState<{ index: number; field: string } | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [flagMenuOpen, setFlagMenuOpen] = useState<number | null>(null);
+  const [historyFlagMenuOpen, setHistoryFlagMenuOpen] = useState<string | null>(null);
+  const [editedHistoryRecords, setEditedHistoryRecords] = useState<Map<string, SwimRecord>>(new Map());
   const [expandedHistory, setExpandedHistory] = useState<Set<string>>(new Set());
   const flagMenuRef = useRef<HTMLDivElement>(null);
 
@@ -96,6 +103,7 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
   useEffect(() => {
     const newCurrentRecords = records.filter((r) => r.is_current !== false);
     setEditableRecords(newCurrentRecords.map(mapRecordToEditable));
+    setEditedHistoryRecords(new Map());
     setHasChanges(false);
   }, [records]);
 
@@ -104,6 +112,7 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
     const handleClickOutside = (event: MouseEvent) => {
       if (flagMenuRef.current && !flagMenuRef.current.contains(event.target as Node)) {
         setFlagMenuOpen(null);
+        setHistoryFlagMenuOpen(null);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -114,6 +123,25 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
     const newRecords = [...editableRecords];
     newRecords[index][flag] = !newRecords[index][flag];
     setEditableRecords(newRecords);
+    setHasChanges(true);
+  };
+
+  const toggleHistoryFlag = (historyRecordId: string, flag: RecordFlagType) => {
+    setEditedHistoryRecords((prev) => {
+      const newMap = new Map(prev);
+      // Look up existing edited version or fall back to original
+      let record = newMap.get(historyRecordId);
+      if (!record) {
+        const original = historyRecords.find((r) => r.id === historyRecordId);
+        if (!original) return prev;
+        record = { ...original };
+      } else {
+        record = { ...record };
+      }
+      record[flag] = !record[flag];
+      newMap.set(historyRecordId, record);
+      return newMap;
+    });
     setHasChanges(true);
   };
 
@@ -263,7 +291,25 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
       const validRecords = editableRecords.filter(
         (r) => r.event_name.trim() !== ""
       );
-      await onSave(validRecords);
+
+      // Build history flag updates from editedHistoryRecords
+      const historyUpdates: HistoryFlagUpdate[] = Array.from(editedHistoryRecords.entries()).map(
+        ([id, record]) => ({
+          id,
+          flags: {
+            is_national: record.is_national || false,
+            is_current_national: record.is_current_national || false,
+            is_provincial: record.is_provincial || false,
+            is_current_provincial: record.is_current_provincial || false,
+            is_split: record.is_split || false,
+            is_relay_split: record.is_relay_split || false,
+            is_new: record.is_new || false,
+            is_world_record: record.is_world_record || false,
+          },
+        })
+      );
+
+      await onSave(validRecords, historyUpdates.length > 0 ? historyUpdates : undefined);
       setHasChanges(false);
     } finally {
       setSaving(false);
@@ -603,7 +649,55 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
                         </span>
                       </td>
                       <td className="px-3 py-2">
-                        <RecordFlags record={historyRecord} size="sm" />
+                        <div className="relative flex items-center gap-1">
+                          <RecordFlags record={editedHistoryRecords.get(historyRecord.id) || historyRecord} size="sm" />
+                          {!readOnly && (
+                            <div ref={historyFlagMenuOpen === historyRecord.id ? flagMenuRef : null}>
+                              <button
+                                type="button"
+                                onClick={() => setHistoryFlagMenuOpen(historyFlagMenuOpen === historyRecord.id ? null : historyRecord.id)}
+                                className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
+                                title="Edit flags"
+                              >
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                                </svg>
+                              </button>
+                              {historyFlagMenuOpen === historyRecord.id && (
+                                <div className="absolute right-0 top-full z-10 mt-1 w-44 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-700">
+                                  {[
+                                    { key: "is_world_record" as RecordFlagType, label: "World Record", icon: "👑" },
+                                    { key: "is_national" as RecordFlagType, label: "Canadian Record", icon: "🍁" },
+                                    { key: "is_current_national" as RecordFlagType, label: "Current National", icon: "🇨🇦" },
+                                    { key: "is_provincial" as RecordFlagType, label: "Provincial Record", icon: "🏅" },
+                                    { key: "is_current_provincial" as RecordFlagType, label: "Current Provincial", icon: "🥇" },
+                                    { key: "is_split" as RecordFlagType, label: "Split Time", icon: "⏱️" },
+                                    { key: "is_relay_split" as RecordFlagType, label: "Relay Split", icon: "🏊" },
+                                    { key: "is_new" as RecordFlagType, label: "New Record", icon: "⭐" },
+                                  ].map((flag) => {
+                                    const effectiveRecord = editedHistoryRecords.get(historyRecord.id) || historyRecord;
+                                    return (
+                                      <button
+                                        key={flag.key}
+                                        type="button"
+                                        onClick={() => toggleHistoryFlag(historyRecord.id, flag.key)}
+                                        className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-600"
+                                      >
+                                        <span>{flag.icon}</span>
+                                        <span className="flex-1 text-gray-700 dark:text-gray-200">{flag.label}</span>
+                                        {effectiveRecord[flag.key] && (
+                                          <svg className="h-4 w-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                          </svg>
+                                        )}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </td>
                       {!readOnly && (
                         <td className="px-3 py-2">

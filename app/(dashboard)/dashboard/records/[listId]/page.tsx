@@ -9,6 +9,7 @@ import RecordTable from "@/components/RecordTable";
 import CSVUploader from "@/components/CSVUploader";
 import type { RecordList, SwimRecord } from "@/types/database";
 import type { CSVRecord } from "@/lib/csv-parser";
+import type { HistoryFlagUpdate } from "@/components/RecordTable";
 
 export default function RecordListDetailPage() {
   const router = useRouter();
@@ -61,7 +62,8 @@ export default function RecordListDetailPage() {
   }, [loadData]);
 
   const handleSaveRecords = async (
-    editableRecords: Array<Omit<SwimRecord, "id" | "created_at" | "record_list_id"> & { id?: string; isNew?: boolean; _breakingRecordId?: string }>
+    editableRecords: Array<Omit<SwimRecord, "id" | "created_at" | "record_list_id"> & { id?: string; isNew?: boolean; _breakingRecordId?: string }>,
+    historyUpdates?: HistoryFlagUpdate[]
   ) => {
     const supabase = createClient();
 
@@ -160,6 +162,30 @@ export default function RecordListDetailPage() {
       if (error) {
         setMessage({ type: "error", text: error.message });
         return;
+      }
+    }
+
+    // Update history record flags
+    if (historyUpdates) {
+      for (const update of historyUpdates) {
+        const { error } = await supabase
+          .from("records")
+          .update({
+            is_national: update.flags.is_national,
+            is_current_national: update.flags.is_current_national,
+            is_provincial: update.flags.is_provincial,
+            is_current_provincial: update.flags.is_current_provincial,
+            is_split: update.flags.is_split,
+            is_relay_split: update.flags.is_relay_split,
+            is_new: update.flags.is_new,
+            is_world_record: update.flags.is_world_record,
+          })
+          .eq("id", update.id);
+
+        if (error) {
+          setMessage({ type: "error", text: error.message });
+          return;
+        }
       }
     }
 
