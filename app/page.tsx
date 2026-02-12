@@ -118,6 +118,17 @@ export default function HomePage() {
 
       <footer className="container mx-auto px-4 py-10 text-center text-gray-500 dark:text-gray-400">
         <p>&copy; {new Date().getFullYear()} Club Record. All rights reserved.</p>
+        <p className="mt-2">
+          Designed by{" "}
+          <a
+            href="https://jsdesigns.ca"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:underline dark:text-blue-400"
+          >
+            JS Designs
+          </a>
+        </p>
       </footer>
     </div>
   );
