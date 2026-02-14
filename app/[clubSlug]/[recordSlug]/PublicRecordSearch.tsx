@@ -103,7 +103,7 @@ export default function PublicRecordSearch({
           onChange={(e) => setSearch(e.target.value)}
           className="w-full max-w-md rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
         />
-        {hasAnyFlags && <RecordFlagsLegend />}
+        {hasAnyFlags && <RecordFlagsLegend records={currentRecords} />}
       </div>
 
       <div className="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-800">

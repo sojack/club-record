@@ -46,11 +46,17 @@ export default function RecordFlags({ record, size = "md", showEmpty = false }: 
   );
 }
 
-export function RecordFlagsLegend() {
+export function RecordFlagsLegend({ records }: { records?: RecordFlagsProps["record"][] }) {
+  const visibleFlags = records
+    ? FLAG_DEFINITIONS.filter((flag) => records.some((r) => r[flag.key]))
+    : FLAG_DEFINITIONS;
+
+  if (visibleFlags.length === 0) return null;
+
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600 dark:text-gray-400">
       <span className="font-medium">Legend:</span>
-      {FLAG_DEFINITIONS.map((flag) => (
+      {visibleFlags.map((flag) => (
         <span key={flag.key} className="flex items-center gap-1">
           <span>{flag.icon}</span>
           <span>{flag.label}</span>
