@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useClub } from "@/contexts/ClubContext";
 import RecordTable from "@/components/RecordTable";
 import CSVUploader from "@/components/CSVUploader";
+import EmbedCodeSnippet from "@/components/EmbedCodeSnippet";
 import type { RecordList, SwimRecord } from "@/types/database";
 import type { CSVRecord } from "@/lib/csv-parser";
 import type { HistoryFlagUpdate } from "@/components/RecordTable";
@@ -448,6 +449,16 @@ export default function RecordListDetailPage() {
           courseType={recordList.course_type as "LCM" | "SCM" | "SCY"}
         />
       </div>
+
+      {selectedClub && recordList && (
+        <div className="mb-6">
+          <EmbedCodeSnippet
+            clubSlug={selectedClub.slug}
+            listSlug={recordList.slug}
+            listTitle={recordList.title}
+          />
+        </div>
+      )}
 
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
