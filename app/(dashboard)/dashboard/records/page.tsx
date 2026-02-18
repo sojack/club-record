@@ -36,7 +36,7 @@ export default function RecordListsPage() {
       .from("record_lists")
       .select("*, records(count)")
       .eq("club_id", selectedClub.id)
-      .order("created_at", { ascending: false });
+      .order("title", { ascending: true });
 
     setRecordLists((data as (RecordList & { records: { count: number }[] })[]) || []);
     setLoading(false);
