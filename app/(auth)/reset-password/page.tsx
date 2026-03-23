@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -12,20 +12,6 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [isValidSession, setIsValidSession] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    // Check if user has a valid recovery session
-    const checkSession = async () => {
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-
-      // User should have a session from clicking the reset link
-      setIsValidSession(!!session);
-    };
-
-    checkSession();
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,47 +50,6 @@ export default function ResetPasswordPage() {
       router.refresh();
     }, 2000);
   };
-
-  // Still checking session
-  if (isValidSession === null) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-gray-500 dark:text-gray-400">Loading...</div>
-      </div>
-    );
-  }
-
-  // No valid session - user needs to request a new reset link
-  if (!isValidSession) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-900">
-        <div className="w-full max-w-md text-center">
-          <div className="mb-8">
-            <Link href="/" className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-              Club Record
-            </Link>
-          </div>
-
-          <div className="rounded-xl bg-white p-8 shadow-sm dark:bg-gray-800">
-            <div className="mb-4 text-5xl">🔗</div>
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-              Invalid or expired link
-            </h1>
-            <p className="mt-4 text-gray-600 dark:text-gray-400">
-              This password reset link is invalid or has expired. Please request a new one.
-            </p>
-
-            <Link
-              href="/forgot-password"
-              className="mt-6 inline-block rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700"
-            >
-              Request new link
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // Success state
   if (success) {
@@ -197,6 +142,13 @@ export default function ResetPasswordPage() {
             {loading ? "Updating..." : "Update password"}
           </button>
         </form>
+
+        <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
+          Link expired?{" "}
+          <Link href="/forgot-password" className="text-blue-600 hover:underline dark:text-blue-400">
+            Request a new one
+          </Link>
+        </p>
       </div>
     </div>
   );
