@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { type CookieOptions } from "@supabase/ssr";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -8,18 +8,29 @@ export async function GET(request: Request) {
   const next = searchParams.get("next") ?? "/dashboard";
 
   if (code) {
-    const cookieStore = await cookies();
+    const cookiesToSet: { name: string; value: string; options: CookieOptions }[] = [];
+
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
           getAll() {
-            return cookieStore.getAll();
+            return request.headers
+              .get("cookie")
+              ?.split("; ")
+              .map((c) => {
+                const [name, ...rest] = c.split("=");
+                return { name, value: rest.join("=") };
+              }) ?? [];
           },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
+          setAll(cookies) {
+            cookiesToSet.push(
+              ...cookies.map(({ name, value, options }) => ({
+                name,
+                value,
+                options: options ?? {},
+              }))
             );
           },
         },
@@ -27,8 +38,13 @@ export async function GET(request: Request) {
     );
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
+
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      const response = NextResponse.redirect(`${origin}${next}`);
+      for (const { name, value, options } of cookiesToSet) {
+        response.cookies.set(name, value, options);
+      }
+      return response;
     }
   }
 
