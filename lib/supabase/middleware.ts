@@ -29,16 +29,29 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // If there's an auth code on the homepage, redirect to the callback handler
+  // Handle auth code exchange directly in the proxy
   const code = request.nextUrl.searchParams.get("code");
-  if (
-    code &&
-    request.nextUrl.pathname === "/"
-  ) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/auth/callback";
-    url.searchParams.set("next", "/dashboard");
-    return NextResponse.redirect(url);
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (!error) {
+      // Determine where to redirect after code exchange
+      const pathname = request.nextUrl.pathname;
+      const next = request.nextUrl.searchParams.get("next");
+      let redirectPath = next || (pathname === "/" ? "/dashboard" : pathname);
+
+      const url = request.nextUrl.clone();
+      url.pathname = redirectPath;
+      url.searchParams.delete("code");
+      url.searchParams.delete("next");
+
+      // supabaseResponse has the cookies from the exchange
+      const redirectResponse = NextResponse.redirect(url);
+      // Copy cookies from supabaseResponse to the redirect
+      supabaseResponse.cookies.getAll().forEach((cookie) => {
+        redirectResponse.cookies.set(cookie.name, cookie.value);
+      });
+      return redirectResponse;
+    }
   }
 
   const {
