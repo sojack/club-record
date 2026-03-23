@@ -29,31 +29,6 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Handle auth code exchange directly in the proxy
-  const code = request.nextUrl.searchParams.get("code");
-  if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) {
-      // Determine where to redirect after code exchange
-      const pathname = request.nextUrl.pathname;
-      const next = request.nextUrl.searchParams.get("next");
-      let redirectPath = next || (pathname === "/" ? "/dashboard" : pathname);
-
-      const url = request.nextUrl.clone();
-      url.pathname = redirectPath;
-      url.searchParams.delete("code");
-      url.searchParams.delete("next");
-
-      // supabaseResponse has the cookies from the exchange
-      const redirectResponse = NextResponse.redirect(url);
-      // Copy cookies from supabaseResponse to the redirect
-      supabaseResponse.cookies.getAll().forEach((cookie) => {
-        redirectResponse.cookies.set(cookie.name, cookie.value);
-      });
-      return redirectResponse;
-    }
-  }
-
   const {
     data: { user },
   } = await supabase.auth.getUser();
