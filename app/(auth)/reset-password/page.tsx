@@ -20,18 +20,23 @@ export default function ResetPasswordPage() {
     const code = searchParams.get("code");
 
     if (code) {
-      // Exchange the code for a session on the client side
-      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+      supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
         if (error) {
-          console.error("Code exchange failed:", error);
+          setError(`Code exchange failed: ${error.message}`);
+        } else if (!data.session) {
+          setError("Code exchange succeeded but no session returned");
         }
         setReady(true);
-        // Clean the URL
         window.history.replaceState(null, "", "/reset-password");
       });
     } else {
       // No code — check if we already have a session
-      setReady(true);
+      supabase.auth.getSession().then(({ data }) => {
+        if (!data.session) {
+          setError("No active session. Please request a new reset link.");
+        }
+        setReady(true);
+      });
     }
   }, [searchParams]);
 
