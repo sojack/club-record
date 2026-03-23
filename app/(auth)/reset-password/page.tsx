@@ -1,58 +1,17 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 export default function ResetPasswordPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
-          <div className="text-gray-500 dark:text-gray-400">Loading...</div>
-        </div>
-      }
-    >
-      <ResetPasswordForm />
-    </Suspense>
-  );
-}
-
-function ResetPasswordForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    const supabase = createClient();
-    const code = searchParams.get("code");
-
-    if (code) {
-      supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
-        if (error) {
-          setError(`Code exchange failed: ${error.message}`);
-        } else if (!data.session) {
-          setError("Code exchange succeeded but no session returned");
-        }
-        setReady(true);
-        window.history.replaceState(null, "", "/reset-password");
-      });
-    } else {
-      // No code — check if we already have a session
-      supabase.auth.getSession().then(({ data }) => {
-        if (!data.session) {
-          setError("No active session. Please request a new reset link.");
-        }
-        setReady(true);
-      });
-    }
-  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,14 +50,6 @@ function ResetPasswordForm() {
     }, 2000);
   };
 
-  if (!ready) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-gray-500 dark:text-gray-400">Loading...</div>
-      </div>
-    );
-  }
-
   if (success) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-900">
@@ -108,7 +59,6 @@ function ResetPasswordForm() {
               Club Record
             </Link>
           </div>
-
           <div className="rounded-xl bg-white p-8 shadow-sm dark:bg-gray-800">
             <div className="mb-4 text-5xl">✓</div>
             <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
