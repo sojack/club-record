@@ -29,13 +29,15 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // If there's an auth code in the URL, redirect to the callback handler
+  // If there's an auth code on the homepage, redirect to the callback handler
   const code = request.nextUrl.searchParams.get("code");
-  if (code && !request.nextUrl.pathname.startsWith("/auth/callback")) {
+  if (
+    code &&
+    request.nextUrl.pathname === "/"
+  ) {
     const url = request.nextUrl.clone();
-    const next = url.pathname === "/" ? "/dashboard" : url.pathname;
     url.pathname = "/auth/callback";
-    url.searchParams.set("next", next);
+    url.searchParams.set("next", "/dashboard");
     return NextResponse.redirect(url);
   }
 
