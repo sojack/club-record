@@ -1,28 +1,12 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { resetPassword } from "./actions";
 
 export default function ResetPasswordPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
-          <div className="text-gray-500 dark:text-gray-400">Loading...</div>
-        </div>
-      }
-    >
-      <ResetPasswordForm />
-    </Suspense>
-  );
-}
-
-function ResetPasswordForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -31,21 +15,33 @@ function ResetPasswordForm() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const code = searchParams.get("code");
+    const supabase = createClient();
 
-    if (code) {
-      const supabase = createClient();
-      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
-        if (error) {
-          setError(`Failed to verify reset link: ${error.message}`);
+    // Listen for auth events — PASSWORD_RECOVERY fires when the user
+    // arrives via a recovery link with implicit flow hash tokens
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event) => {
+        if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
+          setReady(true);
         }
+      }
+    );
+
+    // Also check if already authenticated
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) {
         setReady(true);
-        window.history.replaceState(null, "", "/reset-password");
-      });
-    } else {
-      setReady(true);
-    }
-  }, [searchParams]);
+      }
+    });
+
+    // If no session after 3 seconds, show the form anyway
+    const timeout = setTimeout(() => setReady(true), 3000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,10 +59,13 @@ function ResetPasswordForm() {
 
     setLoading(true);
 
-    const result = await resetPassword(password);
+    const supabase = createClient();
+    const { error } = await supabase.auth.updateUser({
+      password: password,
+    });
 
-    if (result.error) {
-      setError(result.error);
+    if (error) {
+      setError(error.message);
       setLoading(false);
       return;
     }
