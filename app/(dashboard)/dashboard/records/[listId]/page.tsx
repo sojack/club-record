@@ -6,6 +6,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useClub } from "@/contexts/ClubContext";
 import RecordTable from "@/components/RecordTable";
+import LastUpdated from "@/components/LastUpdated";
+import { maxIso } from "@/lib/date-utils";
 import CSVUploader from "@/components/CSVUploader";
 import EmbedCodeSnippet from "@/components/EmbedCodeSnippet";
 import type { RecordList, SwimRecord } from "@/types/database";
@@ -380,6 +382,14 @@ export default function RecordListDetailPage() {
                 <span className="text-sm text-gray-500 dark:text-gray-400">
                   /{selectedClub?.slug}/{recordList.slug}
                 </span>
+              </div>
+              <div className="mt-2">
+                <LastUpdated
+                  iso={maxIso([
+                    recordList.updated_at,
+                    ...records.map((r) => r.updated_at),
+                  ])}
+                />
               </div>
             </div>
             {canEdit && (
