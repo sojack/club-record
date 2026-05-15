@@ -6,6 +6,7 @@ export interface Club {
   logo_url: string | null;
   slug: string;
   created_at: string;
+  updated_at: string;  // DB-managed: set on insert, bumped by trigger on edit
 }
 
 export type ClubMemberRole = 'owner' | 'editor' | 'viewer';
@@ -34,6 +35,7 @@ export interface RecordList {
   course_type: "SCM" | "SCY" | "LCM";
   gender: "male" | "female" | null;
   created_at: string;
+  updated_at: string;  // DB-managed: set on insert, bumped by trigger on edit
 }
 
 export interface SwimRecord {
@@ -56,6 +58,7 @@ export interface SwimRecord {
   superseded_by: string | null;  // ID of the record that broke this one
   is_current: boolean;           // false if this record has been broken
   created_at: string;
+  updated_at: string;            // DB-managed: set on insert, bumped by trigger on edit
 }
 
 export interface RecordWithHistory {
@@ -74,8 +77,8 @@ export interface Database {
     Tables: {
       clubs: {
         Row: Club;
-        Insert: Omit<Club, "id" | "created_at">;
-        Update: Partial<Omit<Club, "id" | "created_at">>;
+        Insert: Omit<Club, "id" | "created_at" | "updated_at">;
+        Update: Partial<Omit<Club, "id" | "created_at" | "updated_at">>;
       };
       club_members: {
         Row: ClubMember;
@@ -84,13 +87,13 @@ export interface Database {
       };
       record_lists: {
         Row: RecordList;
-        Insert: Omit<RecordList, "id" | "created_at">;
-        Update: Partial<Omit<RecordList, "id" | "created_at">>;
+        Insert: Omit<RecordList, "id" | "created_at" | "updated_at">;
+        Update: Partial<Omit<RecordList, "id" | "created_at" | "updated_at">>;
       };
       records: {
         Row: SwimRecord;
-        Insert: Omit<SwimRecord, "id" | "created_at">;
-        Update: Partial<Omit<SwimRecord, "id" | "created_at">>;
+        Insert: Omit<SwimRecord, "id" | "created_at" | "updated_at">;
+        Update: Partial<Omit<SwimRecord, "id" | "created_at" | "updated_at">>;
       };
       standard_events: {
         Row: StandardEvent;

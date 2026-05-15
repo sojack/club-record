@@ -5,7 +5,7 @@ import { formatMsToTime, parseTimeToMs, isValidTimeFormat } from "@/lib/time-uti
 import type { SwimRecord } from "@/types/database";
 import RecordFlags from "./RecordFlags";
 
-interface EditableRecord extends Omit<SwimRecord, "id" | "created_at" | "record_list_id"> {
+interface EditableRecord extends Omit<SwimRecord, "id" | "created_at" | "updated_at" | "record_list_id"> {
   id?: string;
   isNew?: boolean;
   _breakingRecordId?: string; // ID of the record this new record is breaking

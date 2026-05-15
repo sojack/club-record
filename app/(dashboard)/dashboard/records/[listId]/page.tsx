@@ -63,7 +63,7 @@ export default function RecordListDetailPage() {
   }, [loadData]);
 
   const handleSaveRecords = async (
-    editableRecords: Array<Omit<SwimRecord, "id" | "created_at" | "record_list_id"> & { id?: string; isNew?: boolean; _breakingRecordId?: string }>,
+    editableRecords: Array<Omit<SwimRecord, "id" | "created_at" | "updated_at" | "record_list_id"> & { id?: string; isNew?: boolean; _breakingRecordId?: string }>,
     historyUpdates?: HistoryFlagUpdate[]
   ) => {
     const supabase = createClient();
