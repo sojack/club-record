@@ -6,10 +6,17 @@ import { createClient } from "@/lib/supabase/client";
 import { useClub } from "@/contexts/ClubContext";
 import { formatMsToTime } from "@/lib/time-utils";
 import type { RecordList, SwimRecord } from "@/types/database";
+import { maxIso } from "@/lib/date-utils";
+import LastUpdated from "@/components/LastUpdated";
+
+type RecordListRow = RecordList & {
+  records: { count: number }[];
+  lastUpdated: string | null;
+};
 
 export default function RecordListsPage() {
   const { selectedClub, isLoading: clubLoading, canEdit } = useClub();
-  const [recordLists, setRecordLists] = useState<(RecordList & { records: { count: number }[] })[]>([]);
+  const [recordLists, setRecordLists] = useState<RecordListRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -38,7 +45,39 @@ export default function RecordListsPage() {
       .eq("club_id", selectedClub.id)
       .order("title", { ascending: true });
 
-    setRecordLists((data as (RecordList & { records: { count: number }[] })[]) || []);
+    const lists = (data as (RecordList & { records: { count: number }[] })[]) || [];
+
+    // Content-freshness: latest of each list's own updated_at and the newest
+    // updated_at among its records. One bounded extra query over the same
+    // list IDs the CSV export already fetches in full — strictly lighter.
+    // If the column/migration is absent this query errors and recRows is
+    // undefined; we degrade to list.updated_at (also possibly absent → null).
+    const listIds = lists.map((l) => l.id);
+    const recordMax = new Map<string, string>();
+    if (listIds.length > 0) {
+      const { data: recRows } = await supabase
+        .from("records")
+        .select("record_list_id, updated_at")
+        .in("record_list_id", listIds);
+      for (const row of (recRows as
+        | { record_list_id: string; updated_at: string }[]
+        | null) || []) {
+        const prev = recordMax.get(row.record_list_id);
+        if (
+          !prev ||
+          new Date(row.updated_at).getTime() > new Date(prev).getTime()
+        ) {
+          recordMax.set(row.record_list_id, row.updated_at);
+        }
+      }
+    }
+
+    const rows: RecordListRow[] = lists.map((l) => ({
+      ...l,
+      lastUpdated: maxIso([l.updated_at, recordMax.get(l.id)]),
+    }));
+
+    setRecordLists(rows);
     setLoading(false);
     setSelectedIds([]);
   };
@@ -320,6 +359,9 @@ export default function RecordListsPage() {
                   </div>
                   <div className="mt-3 text-sm text-gray-500 dark:text-gray-400">
                     /{selectedClub.slug}/{list.slug}
+                  </div>
+                  <div className="mt-2">
+                    <LastUpdated iso={list.lastUpdated} />
                   </div>
                 </Link>
               </div>
