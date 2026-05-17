@@ -49,8 +49,7 @@ function parseFilename(filename: string): {
     ? "relay"
     : "individual";
   const scope: "club" | "national_provincial" =
-    recordType === "relay" &&
-    (lower.includes("national") || lower.includes("provincial") || lower.includes("canadian"))
+    lower.includes("national") || lower.includes("provincial") || lower.includes("canadian")
       ? "national_provincial"
       : "club";
 
@@ -159,7 +158,7 @@ export default function AdminUploadPage({
             courseType: file.courseType,
             gender: file.gender,
             recordType: file.recordType,
-            scope: file.recordType === "relay" ? file.scope : "club",
+            scope: file.scope,
             records: file.records.map((r, idx) => ({
               event_name: r.event_name,
               time_ms: r.time_ms,

@@ -50,8 +50,7 @@ function parseFilename(filename: string): {
     ? "relay"
     : "individual";
   const scope: "club" | "national_provincial" =
-    recordType === "relay" &&
-    (lower.includes("national") || lower.includes("provincial") || lower.includes("canadian"))
+    lower.includes("national") || lower.includes("provincial") || lower.includes("canadian")
       ? "national_provincial"
       : "club";
 
@@ -132,7 +131,7 @@ export default function BulkUploadPage() {
           course_type: file.courseType,
           gender: file.gender,
           record_type: file.recordType,
-          scope: file.recordType === "relay" ? file.scope : "club",
+          scope: file.scope,
         })
         .select()
         .single();

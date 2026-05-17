@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
       course_type: courseType,
       gender: gender ?? null,
       record_type: recordType ?? "individual",
-      scope: recordType === "relay" ? (scope ?? "club") : "club",
+      scope: scope ?? "club",
     })
     .select()
     .single();
