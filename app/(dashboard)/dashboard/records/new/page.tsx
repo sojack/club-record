@@ -165,7 +165,13 @@ export default function NewRecordListPage() {
             <select
               id="recordType"
               value={recordType}
-              onChange={(e) => setRecordType(e.target.value as "individual" | "relay")}
+              onChange={(e) => {
+                const next = e.target.value as "individual" | "relay";
+                setRecordType(next);
+                if (next === "individual" && gender === "mixed") {
+                  setGender("male");
+                }
+              }}
               className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             >
               <option value="individual">Individual</option>
