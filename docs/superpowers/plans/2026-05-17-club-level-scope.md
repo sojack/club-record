@@ -280,9 +280,10 @@ Relay · {recordList.scope === "national" || recordList.scope === "national_prov
 
 - [ ] **Step 7: Commit**
 ```bash
-git add components/RecordTable.tsx components/CSVUploader.tsx "app/(dashboard)/dashboard/records/[listId]/page.tsx"
+git add components/RecordTable.tsx components/CSVUploader.tsx lib/csv-parser.ts "app/(dashboard)/dashboard/records/[listId]/page.tsx"
 git -c commit.gpgsign=false commit -m "Club level: RecordTable/CSVUploader/editor — split Club & Province by scope"
 ```
+(`lib/csv-parser.ts` is included because Step 5a edits `generateCSVTemplate` there; Task D's "Files" list above should be read as also covering `lib/csv-parser.ts`.)
 
 ---
 
