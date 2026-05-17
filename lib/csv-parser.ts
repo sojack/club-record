@@ -182,6 +182,9 @@ export function parseRecordsCSV(
       return;
     }
 
+    const isNatProv = relayOptions.scope === "national_provincial";
+    const indivNatProv = !isRelay && isNatProv;
+
     if (isRelay) {
       if (!name2?.trim() || !name3?.trim() || !name4?.trim()) {
         errors.push(
@@ -203,7 +206,7 @@ export function parseRecordsCSV(
         );
         return;
       }
-      if (relayOptions.scope === "national_provincial") {
+      if (isNatProv) {
         if (!recordClub?.trim()) {
           errors.push(
             `Row ${index + 2}: National/Provincial relay records require a Club`
@@ -217,9 +220,28 @@ export function parseRecordsCSV(
           return;
         }
       }
+    } else if (indivNatProv) {
+      if (!ageGroup?.trim()) {
+        errors.push(
+          `Row ${index + 2}: National/Provincial records require an Age Group`
+        );
+        return;
+      }
+      if (!recordClub?.trim()) {
+        errors.push(
+          `Row ${index + 2}: National/Provincial records require a Club`
+        );
+        return;
+      }
+      if (!province?.trim()) {
+        errors.push(
+          `Row ${index + 2}: National/Provincial records require a Province`
+        );
+        return;
+      }
     }
 
-    const isNatProv = isRelay && relayOptions.scope === "national_provincial";
+    const carryAge = isRelay || indivNatProv;
 
     records.push({
       event_name: event.trim(),
@@ -228,7 +250,7 @@ export function parseRecordsCSV(
       swimmer_name_2: isRelay ? name2!.trim() : null,
       swimmer_name_3: isRelay ? name3!.trim() : null,
       swimmer_name_4: isRelay ? name4!.trim() : null,
-      age_group: isRelay ? ageGroup!.trim() : null,
+      age_group: carryAge ? ageGroup!.trim() : null,
       record_club: isNatProv ? recordClub!.trim() : null,
       province: isNatProv ? province!.trim() : null,
       record_date: normalizeDate(date),
