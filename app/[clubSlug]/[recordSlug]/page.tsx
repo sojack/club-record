@@ -104,7 +104,11 @@ export default async function RecordPage({ params }: RecordPageProps) {
         </div>
       </div>
 
-      <PublicRecordSearch records={typedRecords} />
+      <PublicRecordSearch
+        records={typedRecords}
+        recordType={typedRecordList.record_type}
+        scope={typedRecordList.scope}
+      />
     </div>
   );
 }

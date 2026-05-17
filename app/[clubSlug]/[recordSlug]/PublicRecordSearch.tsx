@@ -7,11 +7,17 @@ import RecordFlags, { RecordFlagsLegend } from "@/components/RecordFlags";
 
 interface PublicRecordSearchProps {
   records: SwimRecord[];
+  recordType?: "individual" | "relay";
+  scope?: "club" | "national_provincial";
 }
 
 export default function PublicRecordSearch({
   records,
+  recordType = "individual",
+  scope = "club",
 }: PublicRecordSearchProps) {
+  const isRelay = recordType === "relay";
+  const isNatProv = isRelay && scope === "national_provincial";
   const formatTime = formatMsToTime;
   const [search, setSearch] = useState("");
   const [expandedHistory, setExpandedHistory] = useState<Set<string>>(new Set());
@@ -114,12 +120,27 @@ export default function PublicRecordSearch({
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                   Event
                 </th>
+                {isRelay && (
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Age Group
+                  </th>
+                )}
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                   Time
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Swimmer
+                  {isRelay ? "Swimmers" : "Swimmer"}
                 </th>
+                {isNatProv && (
+                  <>
+                    <th className="hidden px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 sm:table-cell">
+                      Club
+                    </th>
+                    <th className="hidden px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 sm:table-cell">
+                      Prov
+                    </th>
+                  </>
+                )}
                 <th className="hidden px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 md:table-cell">
                   Date
                 </th>
@@ -152,6 +173,11 @@ export default function PublicRecordSearch({
                           {record.event_name}
                         </span>
                       </td>
+                      {isRelay && (
+                        <td className="px-4 py-3 text-gray-900 dark:text-white">
+                          {record.age_group || "-"}
+                        </td>
+                      )}
                       <td className="px-4 py-3 text-gray-900 dark:text-white">
                         <span className="flex items-center gap-1">
                           <span className="font-mono">
@@ -161,8 +187,22 @@ export default function PublicRecordSearch({
                         </span>
                       </td>
                       <td className="px-4 py-3 text-gray-900 dark:text-white">
-                        {record.swimmer_name || "-"}
+                        {isRelay
+                          ? [record.swimmer_name, record.swimmer_name_2, record.swimmer_name_3, record.swimmer_name_4]
+                              .filter((n) => n && n.trim())
+                              .map((n, i) => <div key={i}>{n}</div>)
+                          : record.swimmer_name || "-"}
                       </td>
+                      {isNatProv && (
+                        <>
+                          <td className="hidden px-4 py-3 text-gray-500 dark:text-gray-400 sm:table-cell">
+                            {record.record_club || "-"}
+                          </td>
+                          <td className="hidden px-4 py-3 text-gray-500 dark:text-gray-400 sm:table-cell">
+                            {record.province || "-"}
+                          </td>
+                        </>
+                      )}
                       <td className="hidden px-4 py-3 text-gray-500 dark:text-gray-400 md:table-cell">
                         {formatDate(record.record_date)}
                       </td>
@@ -178,6 +218,11 @@ export default function PublicRecordSearch({
                         <td className="px-4 py-2 text-gray-500 dark:text-gray-400">
                           <span className="ml-6 text-sm">↳ {historyRecord.event_name}</span>
                         </td>
+                        {isRelay && (
+                          <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
+                            {historyRecord.age_group || "-"}
+                          </td>
+                        )}
                         <td className="px-4 py-2 text-gray-500 dark:text-gray-400">
                           <span className="flex items-center gap-1">
                             <span className="font-mono text-sm">
@@ -189,6 +234,16 @@ export default function PublicRecordSearch({
                         <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
                           {historyRecord.swimmer_name || "-"}
                         </td>
+                        {isNatProv && (
+                          <>
+                            <td className="hidden px-4 py-2 text-sm text-gray-500 dark:text-gray-400 sm:table-cell">
+                              {historyRecord.record_club || "-"}
+                            </td>
+                            <td className="hidden px-4 py-2 text-sm text-gray-500 dark:text-gray-400 sm:table-cell">
+                              {historyRecord.province || "-"}
+                            </td>
+                          </>
+                        )}
                         <td className="hidden px-4 py-2 text-sm text-gray-500 dark:text-gray-400 md:table-cell">
                           {formatDate(historyRecord.record_date)}
                         </td>
@@ -203,7 +258,7 @@ export default function PublicRecordSearch({
               {filteredRecords.length === 0 && (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={5 + (isRelay ? 1 : 0) + (isNatProv ? 2 : 0)}
                     className="px-4 py-8 text-center text-gray-500 dark:text-gray-400"
                   >
                     {search
@@ -248,8 +303,19 @@ export default function PublicRecordSearch({
                   </span>
                 </div>
                 <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                  {record.swimmer_name}
+                  {isRelay
+                    ? [record.swimmer_name, record.swimmer_name_2, record.swimmer_name_3, record.swimmer_name_4]
+                        .filter((n) => n && n.trim())
+                        .join(", ")
+                    : record.swimmer_name}
                 </div>
+                {isRelay && (record.age_group || isNatProv) && (
+                  <div className="mt-1 text-xs text-gray-500 dark:text-gray-500">
+                    {record.age_group}
+                    {isNatProv && (record.record_club || record.province) && " • "}
+                    {isNatProv && [record.record_club, record.province].filter(Boolean).join(", ")}
+                  </div>
+                )}
                 {(record.record_date || record.location) && (
                   <div className="mt-1 text-xs text-gray-500 dark:text-gray-500">
                     {record.record_date && formatDate(record.record_date)}

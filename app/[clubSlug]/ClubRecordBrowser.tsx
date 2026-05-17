@@ -15,12 +15,13 @@ interface ClubRecordBrowserProps {
 }
 
 const COURSE_TYPE_ORDER: RecordList["course_type"][] = ["SCM", "SCY", "LCM"];
-const GENDER_ORDER: Array<RecordList["gender"]> = ["male", "female"];
+const GENDER_ORDER: Array<RecordList["gender"]> = ["male", "female", "mixed"];
 
 // Get display label for a group (course type + gender)
 function getGroupLabel(courseType: string, gender: string | null): string {
   if (!gender) return courseType;
-  const genderLabel = gender === "male" ? "Male" : "Female";
+  const genderLabel =
+    gender === "male" ? "Male" : gender === "female" ? "Female" : "Mixed";
   return `${courseType} ${genderLabel}`;
 }
 
@@ -134,7 +135,11 @@ export default function ClubRecordBrowser({
           </p>
         </div>
       ) : (
-        <PublicRecordSearch records={records} />
+        <PublicRecordSearch
+          records={records}
+          recordType={selectedList?.record_type ?? "individual"}
+          scope={selectedList?.scope ?? "club"}
+        />
       )}
     </div>
   );
