@@ -47,7 +47,7 @@ export default async function ClubLayout({ children, params }: ClubLayoutProps) 
                 {typedClub.full_name}
               </Link>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Club Records
+                Records
               </p>
             </div>
           </div>

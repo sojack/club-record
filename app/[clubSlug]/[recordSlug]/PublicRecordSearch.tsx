@@ -370,10 +370,10 @@ export default function PublicRecordSearch({
               {grouped
                 ? groupedBands.map((g) => (
                     <React.Fragment key={`band-${g.band}`}>
-                      <tr className="bg-gray-100 dark:bg-gray-700/60">
+                      <tr className="bg-gray-800 dark:bg-gray-900">
                         <td
                           colSpan={desktopColSpan}
-                          className="px-4 py-2 text-sm font-semibold text-gray-800 dark:text-gray-200"
+                          className="px-4 py-3 text-lg font-bold tracking-wide text-white dark:text-gray-100"
                         >
                           {g.band}
                         </td>
@@ -404,7 +404,7 @@ export default function PublicRecordSearch({
         {grouped
           ? groupedBands.map((g) => (
               <div key={`mband-${g.band}`} className="space-y-3">
-                <div className="px-1 pt-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                <div className="rounded-md bg-gray-800 px-3 py-2 text-lg font-bold tracking-wide text-white dark:bg-gray-900 dark:text-gray-100">
                   {g.band}
                 </div>
                 {g.records.map((record) => renderMobileCard(record))}

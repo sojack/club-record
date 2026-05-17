@@ -59,7 +59,7 @@ export default async function ClubPage({ params, searchParams }: ClubPageProps) 
     return (
       <div className="container mx-auto px-4 py-8">
         <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-white">
-          Club Records
+          Records
         </h1>
         <div className="rounded-xl bg-white p-12 text-center shadow-sm dark:bg-gray-800">
           <p className="text-gray-500 dark:text-gray-400">

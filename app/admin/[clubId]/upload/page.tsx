@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { parseRecordsCSV, CSVRecord } from "@/lib/csv-parser";
 import { scopeForClubLevel } from "@/lib/scope";
+import { normalizeListTitle } from "@/lib/list-title";
 import type { Club } from "@/types/database";
 
 interface ParsedFile {
@@ -26,7 +27,7 @@ function parseFilename(filename: string): {
   recordType: "individual" | "relay";
 } {
   const nameWithoutExt = filename.replace(/\.csv$/i, "");
-  const title = nameWithoutExt.replace(/_/g, " ").trim();
+  const title = normalizeListTitle(nameWithoutExt);
   const slug = nameWithoutExt
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
