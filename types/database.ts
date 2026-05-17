@@ -5,6 +5,8 @@ export interface Club {
   full_name: string;
   logo_url: string | null;
   slug: string;
+  level: "regular" | "provincial" | "national";
+  province: string | null;
   created_at: string;
   updated_at: string;  // DB-managed: set on insert, bumped by trigger on edit
 }
@@ -35,7 +37,7 @@ export interface RecordList {
   course_type: "SCM" | "SCY" | "LCM";
   gender: "male" | "female" | "mixed" | null;
   record_type: "individual" | "relay";
-  scope: "club" | "national_provincial";
+  scope: "club" | "provincial" | "national" | "national_provincial";
   created_at: string;
   updated_at: string;  // DB-managed: set on insert, bumped by trigger on edit
 }

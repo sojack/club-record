@@ -8,7 +8,7 @@ import RecordFlags, { RecordFlagsLegend } from "@/components/RecordFlags";
 interface PublicRecordSearchProps {
   records: SwimRecord[];
   recordType?: "individual" | "relay";
-  scope?: "club" | "national_provincial";
+  scope?: "club" | "provincial" | "national" | "national_provincial";
 }
 
 export default function PublicRecordSearch({

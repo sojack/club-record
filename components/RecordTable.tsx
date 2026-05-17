@@ -26,7 +26,7 @@ interface RecordTableProps {
   readOnly?: boolean;
   courseType?: "LCM" | "SCM" | "SCY";
   recordType?: "individual" | "relay";
-  scope?: "club" | "national_provincial";
+  scope?: "club" | "provincial" | "national" | "national_provincial";
   ageGroups?: string[];
   relayEvents?: string[];
 }

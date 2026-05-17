@@ -77,7 +77,7 @@ interface RawCSVRow {
 
 export interface RelayParseOptions {
   relay?: boolean;
-  scope?: "club" | "national_provincial";
+  scope?: "club" | "provincial" | "national" | "national_provincial";
   /** Allowed standard age-group names; when provided, non-matching rows error. */
   allowedAgeGroups?: string[];
 }
@@ -182,8 +182,15 @@ export function parseRecordsCSV(
       return;
     }
 
-    const isNatProv = relayOptions.scope === "national_provincial";
-    const indivNatProv = !isRelay && isNatProv;
+    const rawScope = relayOptions.scope;
+    const scope =
+      rawScope === "national" || rawScope === "national_provincial"
+        ? "national"
+        : rawScope === "provincial"
+        ? "provincial"
+        : "club";
+    const carriesAgeClub = scope !== "club"; // provincial + national
+    const carriesProvince = scope === "national";
 
     if (isRelay) {
       if (!name2?.trim() || !name3?.trim() || !name4?.trim()) {
@@ -192,13 +199,10 @@ export function parseRecordsCSV(
         );
         return;
       }
-      if (!ageGroup?.trim()) {
-        errors.push(`Row ${index + 2}: Relay records require an Age Group`);
-        return;
-      }
       if (
         relayOptions.allowedAgeGroups &&
         relayOptions.allowedAgeGroups.length > 0 &&
+        ageGroup?.trim() &&
         !relayOptions.allowedAgeGroups.includes(ageGroup.trim())
       ) {
         errors.push(
@@ -206,42 +210,28 @@ export function parseRecordsCSV(
         );
         return;
       }
-      if (isNatProv) {
-        if (!recordClub?.trim()) {
-          errors.push(
-            `Row ${index + 2}: National/Provincial relay records require a Club`
-          );
-          return;
-        }
-        if (!province?.trim()) {
-          errors.push(
-            `Row ${index + 2}: National/Provincial relay records require a Province`
-          );
-          return;
-        }
-      }
-    } else if (indivNatProv) {
+    }
+
+    if (carriesAgeClub) {
       if (!ageGroup?.trim()) {
         errors.push(
-          `Row ${index + 2}: National/Provincial records require an Age Group`
+          `Row ${index + 2}: ${scope === "national" ? "National" : "Provincial"} records require an Age Group`
         );
         return;
       }
       if (!recordClub?.trim()) {
         errors.push(
-          `Row ${index + 2}: National/Provincial records require a Club`
+          `Row ${index + 2}: ${scope === "national" ? "National" : "Provincial"} records require a Club`
         );
         return;
       }
-      if (!province?.trim()) {
+      if (carriesProvince && !province?.trim()) {
         errors.push(
-          `Row ${index + 2}: National/Provincial records require a Province`
+          `Row ${index + 2}: National records require a Province`
         );
         return;
       }
     }
-
-    const carryAge = isRelay || indivNatProv;
 
     records.push({
       event_name: event.trim(),
@@ -250,9 +240,9 @@ export function parseRecordsCSV(
       swimmer_name_2: isRelay ? name2!.trim() : null,
       swimmer_name_3: isRelay ? name3!.trim() : null,
       swimmer_name_4: isRelay ? name4!.trim() : null,
-      age_group: carryAge ? ageGroup!.trim() : null,
-      record_club: isNatProv ? recordClub!.trim() : null,
-      province: isNatProv ? province!.trim() : null,
+      age_group: carriesAgeClub ? ageGroup!.trim() : null,
+      record_club: carriesAgeClub ? recordClub!.trim() : null,
+      province: carriesProvince ? province!.trim() : null,
       record_date: normalizeDate(date),
       location: location?.trim() || null,
       is_national: parseBoolean(is_national),
@@ -271,7 +261,7 @@ export function parseRecordsCSV(
 
 export interface RelayTemplateOptions {
   relay?: boolean;
-  scope?: "club" | "national_provincial";
+  scope?: "club" | "provincial" | "national" | "national_provincial";
   ageGroups?: string[];
   relayEvents?: string[];
 }

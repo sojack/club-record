@@ -6,7 +6,7 @@ import { parseRecordsCSV, generateCSVTemplate, type CSVRecord } from "@/lib/csv-
 interface CSVUploaderProps {
   onUpload: (records: CSVRecord[]) => void;
   relay?: boolean;
-  scope?: "club" | "national_provincial";
+  scope?: "club" | "provincial" | "national" | "national_provincial";
   allowedAgeGroups?: string[];
   relayEvents?: string[];
 }
