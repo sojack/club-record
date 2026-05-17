@@ -53,6 +53,12 @@ export interface CSVRecord {
   event_name: string;
   time_ms: number;
   swimmer_name: string;
+  swimmer_name_2: string | null;
+  swimmer_name_3: string | null;
+  swimmer_name_4: string | null;
+  age_group: string | null;
+  record_club: string | null;
+  province: string | null;
   record_date: string | null;
   location: string | null;
   is_national: boolean;
@@ -69,11 +75,21 @@ interface RawCSVRow {
   [key: string]: string;
 }
 
+export interface RelayParseOptions {
+  relay?: boolean;
+  scope?: "club" | "national_provincial";
+  /** Allowed standard age-group names; when provided, non-matching rows error. */
+  allowedAgeGroups?: string[];
+}
+
 /**
  * Parse a CSV file and convert to record format
  * Expected columns: Event, Time, Swimmer, Date (optional), Location (optional)
  */
-export function parseRecordsCSV(csvContent: string): {
+export function parseRecordsCSV(
+  csvContent: string,
+  relayOptions: RelayParseOptions = {}
+): {
   records: CSVRecord[];
   errors: string[];
 } {
@@ -107,6 +123,12 @@ export function parseRecordsCSV(csvContent: string): {
     is_relay_split: ["is_relay_split", "relay_split", "relay"],
     is_new: ["is_new", "new", "new_record"],
     is_world_record: ["is_world_record", "world_record", "world", "wr"],
+    swimmer2: ["name2", "swimmer2", "swimmer_name_2", "name_2"],
+    swimmer3: ["name3", "swimmer3", "swimmer_name_3", "name_3"],
+    swimmer4: ["name4", "swimmer4", "swimmer_name_4", "name_4"],
+    age_group: ["agegroup", "age_group", "age group", "age"],
+    record_club: ["club", "record_club", "team"],
+    province: ["province", "prov", "state"],
   };
 
   const parseBoolean = (value: string | undefined): boolean => {
@@ -139,6 +161,14 @@ export function parseRecordsCSV(csvContent: string): {
     const is_new = findColumn(row, columnMaps.is_new);
     const is_world_record = findColumn(row, columnMaps.is_world_record);
 
+    const isRelay = relayOptions.relay === true;
+    const name2 = findColumn(row, columnMaps.swimmer2);
+    const name3 = findColumn(row, columnMaps.swimmer3);
+    const name4 = findColumn(row, columnMaps.swimmer4);
+    const ageGroup = findColumn(row, columnMaps.age_group);
+    const recordClub = findColumn(row, columnMaps.record_club);
+    const province = findColumn(row, columnMaps.province);
+
     if (!event || !time || !swimmer) {
       errors.push(
         `Row ${index + 2}: Missing required field (event, time, or swimmer)`
@@ -152,10 +182,55 @@ export function parseRecordsCSV(csvContent: string): {
       return;
     }
 
+    if (isRelay) {
+      if (!name2?.trim() || !name3?.trim() || !name4?.trim()) {
+        errors.push(
+          `Row ${index + 2}: Relay records require all 4 swimmer names (Name1-Name4)`
+        );
+        return;
+      }
+      if (!ageGroup?.trim()) {
+        errors.push(`Row ${index + 2}: Relay records require an Age Group`);
+        return;
+      }
+      if (
+        relayOptions.allowedAgeGroups &&
+        relayOptions.allowedAgeGroups.length > 0 &&
+        !relayOptions.allowedAgeGroups.includes(ageGroup.trim())
+      ) {
+        errors.push(
+          `Row ${index + 2}: Age Group "${ageGroup.trim()}" is not a standard age group`
+        );
+        return;
+      }
+      if (relayOptions.scope === "national_provincial") {
+        if (!recordClub?.trim()) {
+          errors.push(
+            `Row ${index + 2}: National/Provincial relay records require a Club`
+          );
+          return;
+        }
+        if (!province?.trim()) {
+          errors.push(
+            `Row ${index + 2}: National/Provincial relay records require a Province`
+          );
+          return;
+        }
+      }
+    }
+
+    const isNatProv = isRelay && relayOptions.scope === "national_provincial";
+
     records.push({
       event_name: event.trim(),
       time_ms,
       swimmer_name: swimmer.trim(),
+      swimmer_name_2: isRelay ? name2!.trim() : null,
+      swimmer_name_3: isRelay ? name3!.trim() : null,
+      swimmer_name_4: isRelay ? name4!.trim() : null,
+      age_group: isRelay ? ageGroup!.trim() : null,
+      record_club: isNatProv ? recordClub!.trim() : null,
+      province: isNatProv ? province!.trim() : null,
       record_date: normalizeDate(date),
       location: location?.trim() || null,
       is_national: parseBoolean(is_national),
@@ -172,11 +247,43 @@ export function parseRecordsCSV(csvContent: string): {
   return { records, errors };
 }
 
+export interface RelayTemplateOptions {
+  relay?: boolean;
+  scope?: "club" | "national_provincial";
+  ageGroups?: string[];
+  relayEvents?: string[];
+}
+
 /**
- * Generate a CSV template string
+ * Generate a CSV template string. Relay variant emits relay columns and one
+ * blank row per age group per relay event (mirrors how the individual
+ * sample CSV pre-fills events).
  */
-export function generateCSVTemplate(): string {
-  const headers = ["Event", "Time", "Swimmer", "Date", "Location", "is_World_Record", "is_National", "is_Current_National", "is_Provincial", "is_Current_Provincial", "is_Split", "is_RelaySplit", "is_New"];
-  const exampleRow = ["50 Free", "24.56", "John Smith", "2024-03-15", "City Championships", "", "", "", "", "", "", "", ""];
-  return [headers.join(","), exampleRow.join(",")].join("\n");
+export function generateCSVTemplate(options: RelayTemplateOptions = {}): string {
+  if (!options.relay) {
+    const headers = ["Event", "Time", "Swimmer", "Date", "Location", "is_World_Record", "is_National", "is_Current_National", "is_Provincial", "is_Current_Provincial", "is_Split", "is_RelaySplit", "is_New"];
+    const exampleRow = ["50 Free", "24.56", "John Smith", "2024-03-15", "City Championships", "", "", "", "", "", "", "", ""];
+    return [headers.join(","), exampleRow.join(",")].join("\n");
+  }
+
+  const natProv = options.scope === "national_provincial";
+  const headers = [
+    "Event", "AgeGroup", "Time", "Name1", "Name2", "Name3", "Name4",
+    ...(natProv ? ["Club", "Province"] : []),
+    "Date", "Location",
+    "is_World_Record", "is_National", "is_Current_National",
+    "is_Provincial", "is_Current_Provincial", "is_New",
+  ];
+  const events = options.relayEvents?.length
+    ? options.relayEvents
+    : ["4 X 50 Freestyle Relay"];
+  const ageGroups = options.ageGroups?.length ? options.ageGroups : [""];
+  const blanks = (natProv ? 8 : 6) + 0; // Time..is_New columns left blank
+  const rows = events.flatMap((ev) =>
+    ageGroups.map((ag) =>
+      [ev, ag, ...Array(headers.length - 2).fill("")].join(",")
+    )
+  );
+  void blanks;
+  return [headers.join(","), ...rows].join("\n");
 }
