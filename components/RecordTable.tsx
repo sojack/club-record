@@ -47,7 +47,16 @@ function getStandardEvents(courseType?: string): string[] {
 
 export default function RecordTable({ records, onSave, onDelete, onBreakRecord, readOnly = false, courseType, recordType = "individual", scope = "club", ageGroups = [], relayEvents = [] }: RecordTableProps) {
   const isRelay = recordType === "relay";
-  const isNatProv = isRelay && scope === "national_provincial";
+  const isNatProv = scope === "national_provincial";
+  const showAgeGroup = isRelay || isNatProv;
+  const ageGroupOptions = Array.from(
+    new Set([
+      ...ageGroups,
+      ...records
+        .map((r) => r.age_group)
+        .filter((a): a is string => !!a && a.trim() !== ""),
+    ])
+  );
   // Separate current and history records
   const currentRecords = records.filter((r) => r.is_current !== false);
   const historyRecords = records.filter((r) => r.is_current === false);
@@ -378,18 +387,18 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
   return (
     <div className="space-y-4">
       {isRelay && (
-        <>
-          <datalist id="relay-events-list">
-            {relayEvents.map((ev) => (
-              <option key={ev} value={ev} />
-            ))}
-          </datalist>
-          <datalist id="age-groups-list">
-            {ageGroups.map((ag) => (
-              <option key={ag} value={ag} />
-            ))}
-          </datalist>
-        </>
+        <datalist id="relay-events-list">
+          {relayEvents.map((ev) => (
+            <option key={ev} value={ev} />
+          ))}
+        </datalist>
+      )}
+      {showAgeGroup && (
+        <datalist id="age-groups-list">
+          {ageGroupOptions.map((ag) => (
+            <option key={ag} value={ag} />
+          ))}
+        </datalist>
       )}
       {!readOnly && (
         <div className="flex gap-2">
@@ -432,7 +441,7 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
               <th className="px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                 Event
               </th>
-              {isRelay && (
+              {showAgeGroup && (
                 <th className="px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                   Age Group
                 </th>
@@ -543,7 +552,7 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
                         />
                       )}
                     </td>
-                    {isRelay && (
+                    {showAgeGroup && (
                       <td className="px-3 py-2">
                         {readOnly ? (
                           <span className="px-2 py-1 text-sm text-gray-900 dark:text-white">{record.age_group || ""}</span>
@@ -762,7 +771,7 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
                           {historyRecord.event_name}
                         </span>
                       </td>
-                      {isRelay && (
+                      {showAgeGroup && (
                         <td className="px-3 py-2">
                           <span className="px-2 py-1 text-sm text-gray-500 dark:text-gray-400">
                             {historyRecord.age_group || ""}
@@ -867,7 +876,7 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
             {editableRecords.length === 0 && (
               <tr>
                 <td
-                  colSpan={(readOnly ? 7 : 8) + (isRelay ? 1 : 0) + (isNatProv ? 2 : 0)}
+                  colSpan={(readOnly ? 7 : 8) + (showAgeGroup ? 1 : 0) + (isNatProv ? 2 : 0)}
                   className="px-3 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
                 >
                   {readOnly ? "No records yet." : "No records yet. Add a row or import from CSV."}
