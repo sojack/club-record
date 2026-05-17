@@ -25,6 +25,10 @@ interface RecordTableProps {
   onBreakRecord?: (oldRecordId: string, newRecordId: string) => Promise<void>;
   readOnly?: boolean;
   courseType?: "LCM" | "SCM" | "SCY";
+  recordType?: "individual" | "relay";
+  scope?: "club" | "national_provincial";
+  ageGroups?: string[];
+  relayEvents?: string[];
 }
 
 function getStandardEvents(courseType?: string): string[] {
@@ -41,7 +45,9 @@ function getStandardEvents(courseType?: string): string[] {
   return events;
 }
 
-export default function RecordTable({ records, onSave, onDelete, onBreakRecord, readOnly = false, courseType }: RecordTableProps) {
+export default function RecordTable({ records, onSave, onDelete, onBreakRecord, readOnly = false, courseType, recordType = "individual", scope = "club", ageGroups = [], relayEvents = [] }: RecordTableProps) {
+  const isRelay = recordType === "relay";
+  const isNatProv = isRelay && scope === "national_provincial";
   // Separate current and history records
   const currentRecords = records.filter((r) => r.is_current !== false);
   const historyRecords = records.filter((r) => r.is_current === false);
@@ -272,20 +278,25 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
   };
 
   const addStandardEvents = () => {
-    const standardEvents = getStandardEvents(courseType);
-    const existingEvents = new Set(editableRecords.map((r) => r.event_name.toLowerCase()));
-    const newEvents = standardEvents.filter(
-      (event) => !existingEvents.has(event.toLowerCase())
+    const standardEvents = isRelay
+      ? relayEvents.flatMap((ev) => ageGroups.map((ag) => ({ event: ev, ageGroup: ag })))
+      : getStandardEvents(courseType).map((event) => ({ event, ageGroup: null as string | null }));
+    const existingKeys = new Set(
+      editableRecords.map((r) => `${r.event_name.toLowerCase()}|${r.age_group ?? ""}`)
+    );
+    const newPairs = standardEvents.filter(
+      ({ event, ageGroup }) =>
+        !existingKeys.has(`${event.toLowerCase()}|${ageGroup ?? ""}`)
     );
 
-    const newRecords: EditableRecord[] = newEvents.map((event, i) => ({
+    const newRecords: EditableRecord[] = newPairs.map(({ event, ageGroup }, i) => ({
       event_name: event,
       time_ms: 0,
       swimmer_name: "",
       swimmer_name_2: null,
       swimmer_name_3: null,
       swimmer_name_4: null,
-      age_group: null,
+      age_group: ageGroup,
       record_club: null,
       province: null,
       record_date: null,
@@ -366,6 +377,20 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
 
   return (
     <div className="space-y-4">
+      {isRelay && (
+        <>
+          <datalist id="relay-events-list">
+            {relayEvents.map((ev) => (
+              <option key={ev} value={ev} />
+            ))}
+          </datalist>
+          <datalist id="age-groups-list">
+            {ageGroups.map((ag) => (
+              <option key={ag} value={ag} />
+            ))}
+          </datalist>
+        </>
+      )}
       {!readOnly && (
         <div className="flex gap-2">
           <button
@@ -407,12 +432,27 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
               <th className="px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                 Event
               </th>
+              {isRelay && (
+                <th className="px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Age Group
+                </th>
+              )}
               <th className="px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                 Time
               </th>
               <th className="px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                Swimmer
+                {isRelay ? "Swimmers" : "Swimmer"}
               </th>
+              {isNatProv && (
+                <>
+                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Club
+                  </th>
+                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Prov
+                  </th>
+                </>
+              )}
               <th className="px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                 Date
               </th>
@@ -495,6 +535,7 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
                       ) : (
                         <input
                           type="text"
+                          list={isRelay ? "relay-events-list" : undefined}
                           value={record.event_name}
                           onChange={(e) => handleCellChange(index, "event_name", e.target.value)}
                           className="w-full rounded border border-transparent bg-transparent px-2 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none dark:text-white"
@@ -502,6 +543,22 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
                         />
                       )}
                     </td>
+                    {isRelay && (
+                      <td className="px-3 py-2">
+                        {readOnly ? (
+                          <span className="px-2 py-1 text-sm text-gray-900 dark:text-white">{record.age_group || ""}</span>
+                        ) : (
+                          <input
+                            type="text"
+                            list="age-groups-list"
+                            value={record.age_group || ""}
+                            onChange={(e) => handleCellChange(index, "age_group", e.target.value)}
+                            className="w-28 rounded border border-transparent bg-transparent px-2 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none dark:text-white"
+                            placeholder="Age group"
+                          />
+                        )}
+                      </td>
+                    )}
                     <td className="px-3 py-2">
                       {readOnly ? (
                         <span className="px-2 py-1 text-sm text-gray-900 dark:text-white">
@@ -527,7 +584,30 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
                     </td>
                     <td className="px-3 py-2">
                       {readOnly ? (
-                        <span className="px-2 py-1 text-sm text-gray-900 dark:text-white">{record.swimmer_name}</span>
+                        isRelay ? (
+                          <div className="space-y-0.5">
+                            {[record.swimmer_name, record.swimmer_name_2, record.swimmer_name_3, record.swimmer_name_4]
+                              .filter((n) => n && n.trim())
+                              .map((n, i) => (
+                                <div key={i} className="px-2 text-sm text-gray-900 dark:text-white">{n}</div>
+                              ))}
+                          </div>
+                        ) : (
+                          <span className="px-2 py-1 text-sm text-gray-900 dark:text-white">{record.swimmer_name}</span>
+                        )
+                      ) : isRelay ? (
+                        <div className="space-y-1">
+                          {(["swimmer_name", "swimmer_name_2", "swimmer_name_3", "swimmer_name_4"] as const).map((field, leg) => (
+                            <input
+                              key={field}
+                              type="text"
+                              value={(record[field] as string | null) || ""}
+                              onChange={(e) => handleCellChange(index, field, e.target.value)}
+                              className="block w-full rounded border border-transparent bg-transparent px-2 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none dark:text-white"
+                              placeholder={`Swimmer ${leg + 1}`}
+                            />
+                          ))}
+                        </div>
                       ) : (
                         <input
                           type="text"
@@ -538,6 +618,36 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
                         />
                       )}
                     </td>
+                    {isNatProv && (
+                      <>
+                        <td className="px-3 py-2">
+                          {readOnly ? (
+                            <span className="px-2 py-1 text-sm text-gray-900 dark:text-white">{record.record_club || ""}</span>
+                          ) : (
+                            <input
+                              type="text"
+                              value={record.record_club || ""}
+                              onChange={(e) => handleCellChange(index, "record_club", e.target.value)}
+                              className="w-24 rounded border border-transparent bg-transparent px-2 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none dark:text-white"
+                              placeholder="Club"
+                            />
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          {readOnly ? (
+                            <span className="px-2 py-1 text-sm text-gray-900 dark:text-white">{record.province || ""}</span>
+                          ) : (
+                            <input
+                              type="text"
+                              value={record.province || ""}
+                              onChange={(e) => handleCellChange(index, "province", e.target.value)}
+                              className="w-16 rounded border border-transparent bg-transparent px-2 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none dark:text-white"
+                              placeholder="Prov"
+                            />
+                          )}
+                        </td>
+                      </>
+                    )}
                     <td className="px-3 py-2">
                       {readOnly ? (
                         <span className="px-2 py-1 text-sm text-gray-900 dark:text-white">{record.record_date || ""}</span>
@@ -652,6 +762,13 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
                           {historyRecord.event_name}
                         </span>
                       </td>
+                      {isRelay && (
+                        <td className="px-3 py-2">
+                          <span className="px-2 py-1 text-sm text-gray-500 dark:text-gray-400">
+                            {historyRecord.age_group || ""}
+                          </span>
+                        </td>
+                      )}
                       <td className="px-3 py-2">
                         <span className="px-2 py-1 text-sm text-gray-500 dark:text-gray-400">
                           {historyRecord.time_ms > 0 ? formatMsToTime(historyRecord.time_ms) : ""}
@@ -662,6 +779,20 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
                           {historyRecord.swimmer_name}
                         </span>
                       </td>
+                      {isNatProv && (
+                        <>
+                          <td className="px-3 py-2">
+                            <span className="px-2 py-1 text-sm text-gray-500 dark:text-gray-400">
+                              {historyRecord.record_club || ""}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2">
+                            <span className="px-2 py-1 text-sm text-gray-500 dark:text-gray-400">
+                              {historyRecord.province || ""}
+                            </span>
+                          </td>
+                        </>
+                      )}
                       <td className="px-3 py-2">
                         <span className="px-2 py-1 text-sm text-gray-500 dark:text-gray-400">
                           {historyRecord.record_date || ""}
@@ -736,7 +867,7 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
             {editableRecords.length === 0 && (
               <tr>
                 <td
-                  colSpan={readOnly ? 7 : 8}
+                  colSpan={(readOnly ? 7 : 8) + (isRelay ? 1 : 0) + (isNatProv ? 2 : 0)}
                   className="px-3 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
                 >
                   {readOnly ? "No records yet." : "No records yet. Add a row or import from CSV."}
