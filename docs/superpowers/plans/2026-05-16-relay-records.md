@@ -1869,17 +1869,13 @@ def excel_fraction_to_time(frac):
     if frac is None or frac == "":
         return ""
     total = float(frac) * 86400.0
-    ms = round(total * 1000)
-    total_seconds = ms / 1000.0
-    minutes = int(total_seconds // 60)
-    seconds = total_seconds - minutes * 60
+    total_hundredths = round(total * 100)          # integer; no float carry
+    minutes = total_hundredths // 6000
+    rem = total_hundredths % 6000
+    whole = rem // 100
+    hundredths = rem % 100
     if minutes == 0:
-        return f"{seconds:.2f}"
-    whole = int(seconds)
-    hundredths = round((seconds - whole) * 100)
-    if hundredths == 100:
-        whole += 1
-        hundredths = 0
+        return f"{whole}.{hundredths:02d}"
     return f"{minutes}:{whole:02d}.{hundredths:02d}"
 
 
@@ -1914,6 +1910,8 @@ def collapse_blocks(rows, event_name):
         problems = []
         if len(names) < 4:
             problems.append(f"only {len(names)} swimmer name(s)")
+        if len(names) > 4:
+            problems.append(f"{len(names)} swimmer names (expected 4)")
         if not age:
             problems.append("missing age group")
         if not time:
