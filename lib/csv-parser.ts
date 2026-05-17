@@ -112,7 +112,7 @@ export function parseRecordsCSV(
   const columnMaps = {
     event: ["event", "event_name", "eventname"],
     time: ["time", "time_ms", "record_time"],
-    swimmer: ["swimmer", "swimmer_name", "swimmername", "name", "athlete"],
+    swimmer: ["swimmer", "swimmer_name", "swimmername", "name", "name1", "athlete"],
     date: ["date", "record_date", "recorddate"],
     location: ["location", "meet", "venue"],
     is_national: ["is_national", "national", "canadian_record"],
