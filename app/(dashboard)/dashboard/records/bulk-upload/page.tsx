@@ -12,6 +12,9 @@ interface ParsedFile {
   title: string;
   slug: string;
   courseType: "LCM" | "SCM" | "SCY";
+  gender: "male" | "female" | "mixed" | null;
+  recordType: "individual" | "relay";
+  scope: "club" | "national_provincial";
   records: CSVRecord[];
   errors: string[];
 }
@@ -20,31 +23,39 @@ function parseFilename(filename: string): {
   title: string;
   slug: string;
   courseType: "LCM" | "SCM" | "SCY";
+  gender: "male" | "female" | "mixed" | null;
+  recordType: "individual" | "relay";
+  scope: "club" | "national_provincial";
 } {
-  // Remove extension
   const nameWithoutExt = filename.replace(/\.csv$/i, "");
-
-  // Replace underscores with spaces for title (keep hyphens for age ranges like 18-24)
   const title = nameWithoutExt.replace(/_/g, " ").trim();
-
-  // Generate slug from filename
   const slug = nameWithoutExt
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
 
-  // Detect course type from filename
-  const upperName = nameWithoutExt.toUpperCase();
+  const upper = nameWithoutExt.toUpperCase();
   let courseType: "LCM" | "SCM" | "SCY" = "LCM";
-  if (upperName.includes("SCM")) {
-    courseType = "SCM";
-  } else if (upperName.includes("SCY")) {
-    courseType = "SCY";
-  } else if (upperName.includes("LCM")) {
-    courseType = "LCM";
-  }
+  if (upper.includes("SCM")) courseType = "SCM";
+  else if (upper.includes("SCY")) courseType = "SCY";
+  else if (upper.includes("LCM")) courseType = "LCM";
 
-  return { title, slug, courseType };
+  const lower = nameWithoutExt.toLowerCase();
+  let gender: "male" | "female" | "mixed" | null = null;
+  if (lower.includes("mixed")) gender = "mixed";
+  else if (lower.includes("women") || lower.includes("female")) gender = "female";
+  else if (lower.includes("men") || lower.includes("male")) gender = "male";
+
+  const recordType: "individual" | "relay" = lower.includes("relay")
+    ? "relay"
+    : "individual";
+  const scope: "club" | "national_provincial" =
+    recordType === "relay" &&
+    (lower.includes("national") || lower.includes("provincial") || lower.includes("canadian"))
+      ? "national_provincial"
+      : "club";
+
+  return { title, slug, courseType, gender, recordType, scope };
 }
 
 export default function BulkUploadPage() {
@@ -63,14 +74,20 @@ export default function BulkUploadPage() {
 
     for (const file of Array.from(files)) {
       const content = await file.text();
-      const { title, slug, courseType } = parseFilename(file.name);
-      const { records, errors } = parseRecordsCSV(content);
+      const { title, slug, courseType, gender, recordType, scope } = parseFilename(file.name);
+      const { records, errors } = parseRecordsCSV(content, {
+        relay: recordType === "relay",
+        scope,
+      });
 
       parsed.push({
         file,
         title,
         slug,
         courseType,
+        gender,
+        recordType,
+        scope,
         records,
         errors,
       });
@@ -113,6 +130,9 @@ export default function BulkUploadPage() {
           title: file.title,
           slug: file.slug,
           course_type: file.courseType,
+          gender: file.gender,
+          record_type: file.recordType,
+          scope: file.recordType === "relay" ? file.scope : "club",
         })
         .select()
         .single();
@@ -129,6 +149,12 @@ export default function BulkUploadPage() {
           event_name: r.event_name,
           time_ms: r.time_ms,
           swimmer_name: r.swimmer_name,
+          swimmer_name_2: r.swimmer_name_2,
+          swimmer_name_3: r.swimmer_name_3,
+          swimmer_name_4: r.swimmer_name_4,
+          age_group: r.age_group,
+          record_club: r.record_club,
+          province: r.province,
           record_date: r.record_date,
           location: r.location,
           sort_order: idx,

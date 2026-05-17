@@ -6,6 +6,12 @@ interface RecordData {
   event_name: string;
   time_ms: number;
   swimmer_name: string;
+  swimmer_name_2: string | null;
+  swimmer_name_3: string | null;
+  swimmer_name_4: string | null;
+  age_group: string | null;
+  record_club: string | null;
+  province: string | null;
   record_date: string | null;
   location: string | null;
   sort_order: number;
@@ -23,6 +29,9 @@ interface UploadRequest {
   title: string;
   slug: string;
   courseType: "LCM" | "SCM" | "SCY";
+  gender: "male" | "female" | "mixed" | null;
+  recordType: "individual" | "relay";
+  scope: "club" | "national_provincial";
   records: RecordData[];
 }
 
@@ -44,7 +53,7 @@ export async function POST(request: NextRequest) {
 
   // Parse request body
   const body: UploadRequest = await request.json();
-  const { clubId, title, slug, courseType, records } = body;
+  const { clubId, title, slug, courseType, gender, recordType, scope, records } = body;
 
   if (!clubId || !title || !slug || !records) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -61,6 +70,9 @@ export async function POST(request: NextRequest) {
       title,
       slug,
       course_type: courseType,
+      gender: gender ?? null,
+      record_type: recordType ?? "individual",
+      scope: recordType === "relay" ? (scope ?? "club") : "club",
     })
     .select()
     .single();
@@ -76,6 +88,12 @@ export async function POST(request: NextRequest) {
       event_name: r.event_name,
       time_ms: r.time_ms,
       swimmer_name: r.swimmer_name,
+      swimmer_name_2: r.swimmer_name_2,
+      swimmer_name_3: r.swimmer_name_3,
+      swimmer_name_4: r.swimmer_name_4,
+      age_group: r.age_group,
+      record_club: r.record_club,
+      province: r.province,
       record_date: r.record_date,
       location: r.location,
       sort_order: idx,
