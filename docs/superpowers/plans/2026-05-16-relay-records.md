@@ -2042,7 +2042,9 @@ def main():
             all_review.extend(f"[{gender} {course}] {r}" for r in review)
             bucket.setdefault((gender, course), []).extend(recs)
     for (gender, course), recs in sorted(bucket.items()):
-        fname = f"{gender.lower()}-{course.lower()}-relays.csv"
+        # "national" token => bulk-upload parseFilename infers
+        # scope=national_provincial (Canadian Masters relays carry club+province).
+        fname = f"{gender.lower()}-{course.lower()}-national-relays.csv"
         with open(os.path.join(OUT_DIR, fname), "w", newline="") as f:
             w = csv.writer(f)
             w.writerow(HEADER)
