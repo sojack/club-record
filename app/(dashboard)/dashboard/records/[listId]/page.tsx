@@ -28,7 +28,9 @@ export default function RecordListDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editCourseType, setEditCourseType] = useState<"LCM" | "SCM" | "SCY">("LCM");
-  const [editGender, setEditGender] = useState<"male" | "female">("male");
+  const [editGender, setEditGender] = useState<"male" | "female" | "mixed">("male");
+  const [ageGroups, setAgeGroups] = useState<string[]>([]);
+  const [relayEvents, setRelayEvents] = useState<string[]>([]);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const loadData = useCallback(async () => {
@@ -44,7 +46,7 @@ export default function RecordListDetailPage() {
       setRecordList(listData as RecordList);
       setEditTitle(listData.title);
       setEditCourseType(listData.course_type as "LCM" | "SCM" | "SCY");
-      setEditGender(listData.gender as "male" | "female" || "male");
+      setEditGender(listData.gender as "male" | "female" | "mixed" || "male");
     }
 
     const { data: recordsData } = await supabase
@@ -55,6 +57,23 @@ export default function RecordListDetailPage() {
 
     if (recordsData) {
       setRecords(recordsData as SwimRecord[]);
+    }
+
+    const { data: ageGroupData } = await supabase
+      .from("standard_age_groups")
+      .select("name")
+      .order("sort_order", { ascending: true });
+    if (ageGroupData) {
+      setAgeGroups(ageGroupData.map((a) => a.name as string));
+    }
+
+    const { data: relayEventData } = await supabase
+      .from("standard_events")
+      .select("name")
+      .eq("kind", "relay")
+      .order("sort_order", { ascending: true });
+    if (relayEventData) {
+      setRelayEvents(relayEventData.map((e) => e.name as string));
     }
 
     setLoading(false);
@@ -86,6 +105,12 @@ export default function RecordListDetailPage() {
           event_name: r.event_name,
           time_ms: r.time_ms,
           swimmer_name: r.swimmer_name,
+          swimmer_name_2: r.swimmer_name_2 ?? null,
+          swimmer_name_3: r.swimmer_name_3 ?? null,
+          swimmer_name_4: r.swimmer_name_4 ?? null,
+          age_group: r.age_group ?? null,
+          record_club: r.record_club ?? null,
+          province: r.province ?? null,
           record_date: r.record_date,
           location: r.location,
           sort_order: r.sort_order,
@@ -148,6 +173,12 @@ export default function RecordListDetailPage() {
           event_name: record.event_name,
           time_ms: record.time_ms,
           swimmer_name: record.swimmer_name,
+          swimmer_name_2: record.swimmer_name_2 ?? null,
+          swimmer_name_3: record.swimmer_name_3 ?? null,
+          swimmer_name_4: record.swimmer_name_4 ?? null,
+          age_group: record.age_group ?? null,
+          record_club: record.record_club ?? null,
+          province: record.province ?? null,
           record_date: record.record_date,
           location: record.location,
           sort_order: record.sort_order,
@@ -217,6 +248,12 @@ export default function RecordListDetailPage() {
         event_name: r.event_name,
         time_ms: r.time_ms,
         swimmer_name: r.swimmer_name,
+        swimmer_name_2: r.swimmer_name_2,
+        swimmer_name_3: r.swimmer_name_3,
+        swimmer_name_4: r.swimmer_name_4,
+        age_group: r.age_group,
+        record_club: r.record_club,
+        province: r.province,
         record_date: r.record_date,
         location: r.location,
         sort_order: currentRecordsCount + i,
@@ -342,11 +379,12 @@ export default function RecordListDetailPage() {
               </label>
               <select
                 value={editGender}
-                onChange={(e) => setEditGender(e.target.value as "male" | "female")}
+                onChange={(e) => setEditGender(e.target.value as "male" | "female" | "mixed")}
                 className="mt-1 block rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               >
                 <option value="male">Male</option>
                 <option value="female">Female</option>
+                {recordList?.record_type === "relay" && <option value="mixed">Mixed</option>}
               </select>
             </div>
             <div className="flex gap-2">
@@ -376,7 +414,12 @@ export default function RecordListDetailPage() {
                 </span>
                 {recordList.gender && (
                   <span className="rounded bg-purple-100 px-2 py-0.5 text-sm font-medium text-purple-700 dark:bg-purple-900 dark:text-purple-300">
-                    {recordList.gender === "male" ? "Male" : "Female"}
+                    {recordList.gender === "male" ? "Male" : recordList.gender === "female" ? "Female" : "Mixed"}
+                  </span>
+                )}
+                {recordList.record_type === "relay" && (
+                  <span className="rounded bg-teal-100 px-2 py-0.5 text-sm font-medium text-teal-700 dark:bg-teal-900 dark:text-teal-300">
+                    Relay · {recordList.scope === "national_provincial" ? "Nat/Prov" : "Club"}
                   </span>
                 )}
                 <span className="text-sm text-gray-500 dark:text-gray-400">
@@ -447,7 +490,13 @@ export default function RecordListDetailPage() {
 
         {showCSVUpload && canEdit && (
           <div className="mb-6">
-            <CSVUploader onUpload={handleCSVUpload} />
+            <CSVUploader
+              onUpload={handleCSVUpload}
+              relay={recordList.record_type === "relay"}
+              scope={recordList.scope}
+              allowedAgeGroups={ageGroups}
+              relayEvents={relayEvents}
+            />
           </div>
         )}
 
@@ -457,6 +506,10 @@ export default function RecordListDetailPage() {
           onDelete={handleDeleteRecord}
           readOnly={!canEdit}
           courseType={recordList.course_type as "LCM" | "SCM" | "SCY"}
+          recordType={recordList.record_type}
+          scope={recordList.scope}
+          ageGroups={ageGroups}
+          relayEvents={relayEvents}
         />
       </div>
 
