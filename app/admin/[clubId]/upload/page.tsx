@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { parseRecordsCSV, CSVRecord } from "@/lib/csv-parser";
+import { scopeForClubLevel } from "@/lib/scope";
 import type { Club } from "@/types/database";
 
 interface ParsedFile {
@@ -97,6 +98,7 @@ export default function AdminUploadPage({
       const { title, slug, courseType, gender, recordType } = parseFilename(file.name);
       const { records, errors } = parseRecordsCSV(content, {
         relay: recordType === "relay",
+        scope: scopeForClubLevel(club?.level),
       });
 
       parsed.push({

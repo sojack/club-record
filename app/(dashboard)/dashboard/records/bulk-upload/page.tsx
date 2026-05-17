@@ -71,6 +71,7 @@ export default function BulkUploadPage() {
       const { title, slug, courseType, gender, recordType } = parseFilename(file.name);
       const { records, errors } = parseRecordsCSV(content, {
         relay: recordType === "relay",
+        scope: scopeForClubLevel(selectedClub?.level),
       });
 
       parsed.push({
