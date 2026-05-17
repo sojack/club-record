@@ -91,6 +91,10 @@ export default function PublicRecordSearch({
     return (
       record.event_name.toLowerCase().includes(searchLower) ||
       record.swimmer_name.toLowerCase().includes(searchLower) ||
+      record.swimmer_name_2?.toLowerCase().includes(searchLower) ||
+      record.swimmer_name_3?.toLowerCase().includes(searchLower) ||
+      record.swimmer_name_4?.toLowerCase().includes(searchLower) ||
+      record.record_club?.toLowerCase().includes(searchLower) ||
       record.location?.toLowerCase().includes(searchLower)
     );
   });
@@ -321,7 +325,7 @@ export default function PublicRecordSearch({
       <div className="mb-6 space-y-3">
         <input
           type="text"
-          placeholder="Search by event, swimmer, or location..."
+          placeholder="Search by event, swimmer, club, or location..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full max-w-md rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
