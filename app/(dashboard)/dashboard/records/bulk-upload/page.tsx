@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useClub } from "@/contexts/ClubContext";
 import { parseRecordsCSV, CSVRecord } from "@/lib/csv-parser";
+import { scopeForClubLevel } from "@/lib/scope";
 
 interface ParsedFile {
   file: File;
@@ -14,7 +15,6 @@ interface ParsedFile {
   courseType: "LCM" | "SCM" | "SCY";
   gender: "male" | "female" | "mixed" | null;
   recordType: "individual" | "relay";
-  scope: "club" | "national_provincial";
   records: CSVRecord[];
   errors: string[];
 }
@@ -25,7 +25,6 @@ function parseFilename(filename: string): {
   courseType: "LCM" | "SCM" | "SCY";
   gender: "male" | "female" | "mixed" | null;
   recordType: "individual" | "relay";
-  scope: "club" | "national_provincial";
 } {
   const nameWithoutExt = filename.replace(/\.csv$/i, "");
   const title = nameWithoutExt.replace(/_/g, " ").trim();
@@ -49,12 +48,8 @@ function parseFilename(filename: string): {
   const recordType: "individual" | "relay" = lower.includes("relay")
     ? "relay"
     : "individual";
-  const scope: "club" | "national_provincial" =
-    lower.includes("national") || lower.includes("provincial") || lower.includes("canadian")
-      ? "national_provincial"
-      : "club";
 
-  return { title, slug, courseType, gender, recordType, scope };
+  return { title, slug, courseType, gender, recordType };
 }
 
 export default function BulkUploadPage() {
@@ -73,10 +68,9 @@ export default function BulkUploadPage() {
 
     for (const file of Array.from(files)) {
       const content = await file.text();
-      const { title, slug, courseType, gender, recordType, scope } = parseFilename(file.name);
+      const { title, slug, courseType, gender, recordType } = parseFilename(file.name);
       const { records, errors } = parseRecordsCSV(content, {
         relay: recordType === "relay",
-        scope,
       });
 
       parsed.push({
@@ -86,7 +80,6 @@ export default function BulkUploadPage() {
         courseType,
         gender,
         recordType,
-        scope,
         records,
         errors,
       });
@@ -112,6 +105,8 @@ export default function BulkUploadPage() {
     const success: string[] = [];
     const failed: string[] = [];
 
+    const listScope = scopeForClubLevel(selectedClub?.level);
+
     for (let i = 0; i < parsedFiles.length; i++) {
       const file = parsedFiles[i];
       setProgress({ current: i + 1, total: parsedFiles.length });
@@ -131,7 +126,7 @@ export default function BulkUploadPage() {
           course_type: file.courseType,
           gender: file.gender,
           record_type: file.recordType,
-          scope: file.scope,
+          scope: listScope,
         })
         .select()
         .single();

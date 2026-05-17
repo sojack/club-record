@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useClub } from "@/contexts/ClubContext";
+import { scopeForClubLevel } from "@/lib/scope";
 
 function generateSlug(title: string): string {
   return title
@@ -21,7 +22,6 @@ export default function NewRecordListPage() {
   const [courseType, setCourseType] = useState<"LCM" | "SCM" | "SCY">("LCM");
   const [gender, setGender] = useState<"male" | "female" | "mixed">("male");
   const [recordType, setRecordType] = useState<"individual" | "relay">("individual");
-  const [scope, setScope] = useState<"club" | "national_provincial">("club");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -49,7 +49,7 @@ export default function NewRecordListPage() {
         course_type: courseType,
         gender,
         record_type: recordType,
-        scope: recordType === "relay" ? scope : "club",
+        scope: scopeForClubLevel(selectedClub?.level),
       })
       .select()
       .single();
@@ -178,29 +178,6 @@ export default function NewRecordListPage() {
               <option value="relay">Relay</option>
             </select>
           </div>
-
-          {recordType === "relay" && (
-            <div>
-              <label
-                htmlFor="scope"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Scope
-              </label>
-              <select
-                id="scope"
-                value={scope}
-                onChange={(e) => setScope(e.target.value as "club" | "national_provincial")}
-                className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-              >
-                <option value="club">Club records (no holding club)</option>
-                <option value="national_provincial">National &amp; Provincial (club + province)</option>
-              </select>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                National/Provincial lists require a holding Club and Province on every record.
-              </p>
-            </div>
-          )}
 
           <div>
             <label

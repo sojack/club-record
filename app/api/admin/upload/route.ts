@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { scopeForClubLevel } from "@/lib/scope";
 
 interface RecordData {
   event_name: string;
@@ -31,7 +32,6 @@ interface UploadRequest {
   courseType: "LCM" | "SCM" | "SCY";
   gender: "male" | "female" | "mixed" | null;
   recordType: "individual" | "relay";
-  scope: "club" | "national_provincial";
   records: RecordData[];
 }
 
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
 
   // Parse request body
   const body: UploadRequest = await request.json();
-  const { clubId, title, slug, courseType, gender, recordType, scope, records } = body;
+  const { clubId, title, slug, courseType, gender, recordType, records } = body;
 
   if (!clubId || !title || !slug || !records) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -61,6 +61,16 @@ export async function POST(request: NextRequest) {
 
   // Use admin client to bypass RLS
   const adminClient = createAdminClient();
+
+  // Derive scope from club's level
+  const { data: clubRow } = await adminClient
+    .from("clubs")
+    .select("level")
+    .eq("id", clubId)
+    .single();
+  const listScope = scopeForClubLevel(
+    (clubRow?.level ?? "regular") as "regular" | "provincial" | "national"
+  );
 
   // Create record list
   const { data: listData, error: listError } = await adminClient
@@ -72,7 +82,7 @@ export async function POST(request: NextRequest) {
       course_type: courseType,
       gender: gender ?? null,
       record_type: recordType ?? "individual",
-      scope: scope ?? "club",
+      scope: listScope,
     })
     .select()
     .single();

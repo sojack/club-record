@@ -13,7 +13,6 @@ interface ParsedFile {
   courseType: "LCM" | "SCM" | "SCY";
   gender: "male" | "female" | "mixed" | null;
   recordType: "individual" | "relay";
-  scope: "club" | "national_provincial";
   records: CSVRecord[];
   errors: string[];
 }
@@ -24,7 +23,6 @@ function parseFilename(filename: string): {
   courseType: "LCM" | "SCM" | "SCY";
   gender: "male" | "female" | "mixed" | null;
   recordType: "individual" | "relay";
-  scope: "club" | "national_provincial";
 } {
   const nameWithoutExt = filename.replace(/\.csv$/i, "");
   const title = nameWithoutExt.replace(/_/g, " ").trim();
@@ -48,12 +46,8 @@ function parseFilename(filename: string): {
   const recordType: "individual" | "relay" = lower.includes("relay")
     ? "relay"
     : "individual";
-  const scope: "club" | "national_provincial" =
-    lower.includes("national") || lower.includes("provincial") || lower.includes("canadian")
-      ? "national_provincial"
-      : "club";
 
-  return { title, slug, courseType, gender, recordType, scope };
+  return { title, slug, courseType, gender, recordType };
 }
 
 export default function AdminUploadPage({
@@ -100,10 +94,9 @@ export default function AdminUploadPage({
 
     for (const file of Array.from(files)) {
       const content = await file.text();
-      const { title, slug, courseType, gender, recordType, scope } = parseFilename(file.name);
+      const { title, slug, courseType, gender, recordType } = parseFilename(file.name);
       const { records, errors } = parseRecordsCSV(content, {
         relay: recordType === "relay",
-        scope,
       });
 
       parsed.push({
@@ -113,7 +106,6 @@ export default function AdminUploadPage({
         courseType,
         gender,
         recordType,
-        scope,
         records,
         errors,
       });
@@ -158,7 +150,6 @@ export default function AdminUploadPage({
             courseType: file.courseType,
             gender: file.gender,
             recordType: file.recordType,
-            scope: file.scope,
             records: file.records.map((r, idx) => ({
               event_name: r.event_name,
               time_ms: r.time_ms,
