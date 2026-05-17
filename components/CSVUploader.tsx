@@ -5,9 +5,19 @@ import { parseRecordsCSV, generateCSVTemplate, type CSVRecord } from "@/lib/csv-
 
 interface CSVUploaderProps {
   onUpload: (records: CSVRecord[]) => void;
+  relay?: boolean;
+  scope?: "club" | "national_provincial";
+  allowedAgeGroups?: string[];
+  relayEvents?: string[];
 }
 
-export default function CSVUploader({ onUpload }: CSVUploaderProps) {
+export default function CSVUploader({
+  onUpload,
+  relay = false,
+  scope = "club",
+  allowedAgeGroups,
+  relayEvents,
+}: CSVUploaderProps) {
   const [dragActive, setDragActive] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [preview, setPreview] = useState<CSVRecord[] | null>(null);
@@ -25,7 +35,11 @@ export default function CSVUploader({ onUpload }: CSVUploaderProps) {
     const reader = new FileReader();
     reader.onload = (e) => {
       const content = e.target?.result as string;
-      const { records, errors: parseErrors } = parseRecordsCSV(content);
+      const { records, errors: parseErrors } = parseRecordsCSV(content, {
+        relay,
+        scope,
+        allowedAgeGroups,
+      });
 
       if (parseErrors.length > 0) {
         setErrors(parseErrors);
@@ -81,12 +95,16 @@ export default function CSVUploader({ onUpload }: CSVUploaderProps) {
   };
 
   const downloadTemplate = () => {
-    const content = generateCSVTemplate();
+    const content = generateCSVTemplate(
+      relay
+        ? { relay: true, scope, ageGroups: allowedAgeGroups, relayEvents }
+        : {}
+    );
     const blob = new Blob([content], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "records_template.csv";
+    a.download = relay ? "relay_records_template.csv" : "records_template.csv";
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -116,7 +134,11 @@ export default function CSVUploader({ onUpload }: CSVUploaderProps) {
           Drag and drop a CSV file here, or click to browse
         </p>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-500">
-          Expected columns: Event, Time, Swimmer, Date (optional), Location (optional)
+          {relay
+            ? scope === "national_provincial"
+              ? "Expected columns: Event, AgeGroup, Time, Name1-Name4, Club, Province, Date, Location"
+              : "Expected columns: Event, AgeGroup, Time, Name1-Name4, Date, Location"
+            : "Expected columns: Event, Time, Swimmer, Date (optional), Location (optional)"}
         </p>
       </div>
 
@@ -154,16 +176,28 @@ export default function CSVUploader({ onUpload }: CSVUploaderProps) {
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
                   <th className="px-3 py-2 text-left text-gray-700 dark:text-gray-300">Event</th>
+                  {relay && (
+                    <th className="px-3 py-2 text-left text-gray-700 dark:text-gray-300">Age Group</th>
+                  )}
                   <th className="px-3 py-2 text-left text-gray-700 dark:text-gray-300">Time</th>
-                  <th className="px-3 py-2 text-left text-gray-700 dark:text-gray-300">Swimmer</th>
+                  <th className="px-3 py-2 text-left text-gray-700 dark:text-gray-300">
+                    {relay ? "Swimmers" : "Swimmer"}
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {preview.slice(0, 10).map((record, i) => (
                   <tr key={i} className="border-t border-gray-200 dark:border-gray-700">
                     <td className="px-3 py-2 text-gray-900 dark:text-white">{record.event_name}</td>
+                    {relay && (
+                      <td className="px-3 py-2 text-gray-900 dark:text-white">{record.age_group}</td>
+                    )}
                     <td className="px-3 py-2 text-gray-900 dark:text-white">{record.time_ms}ms</td>
-                    <td className="px-3 py-2 text-gray-900 dark:text-white">{record.swimmer_name}</td>
+                    <td className="px-3 py-2 text-gray-900 dark:text-white">
+                      {relay
+                        ? [record.swimmer_name, record.swimmer_name_2, record.swimmer_name_3, record.swimmer_name_4].filter(Boolean).join(", ")
+                        : record.swimmer_name}
+                    </td>
                   </tr>
                 ))}
               </tbody>
