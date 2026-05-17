@@ -381,8 +381,8 @@ git -c commit.gpgsign=false commit -m "Club level: admin-only control to set clu
 
 - [ ] **Step 5: Commit (code only; CLAUDE.md is outside the repo, not committed).**
 ```bash
-git add types/database.ts lib/csv-parser.ts components/CSVUploader.tsx components/RecordTable.tsx "app/[clubSlug]/[recordSlug]/PublicRecordSearch.tsx"
-# include any other file Step 1/2 narrowed
+git add types/database.ts lib/csv-parser.ts components/CSVUploader.tsx components/RecordTable.tsx "app/[clubSlug]/[recordSlug]/PublicRecordSearch.tsx" "app/(dashboard)/dashboard/records/[listId]/page.tsx"
+# (the [listId]/page.tsx relay-badge has a `=== "national_provincial"` value compare that Step 2 fixes; include any other file Step 1/2 touched)
 git -c commit.gpgsign=false commit -m "Club level: narrow scope union to club|provincial|national (completeness check)"
 ```
 
