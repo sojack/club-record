@@ -8,7 +8,7 @@ import RecordFlags, { RecordFlagsLegend } from "@/components/RecordFlags";
 interface PublicRecordSearchProps {
   records: SwimRecord[];
   recordType?: "individual" | "relay";
-  scope?: "club" | "provincial" | "national" | "national_provincial";
+  scope?: "club" | "provincial" | "national";
 }
 
 export default function PublicRecordSearch({
@@ -18,7 +18,7 @@ export default function PublicRecordSearch({
 }: PublicRecordSearchProps) {
   const isRelay = recordType === "relay";
   const showHolderClub = scope !== "club";
-  const showProvince = scope === "national" || scope === "national_provincial";
+  const showProvince = scope === "national";
   const formatTime = formatMsToTime;
   const [search, setSearch] = useState("");
   const [expandedHistory, setExpandedHistory] = useState<Set<string>>(new Set());

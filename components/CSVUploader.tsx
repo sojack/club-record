@@ -6,7 +6,7 @@ import { parseRecordsCSV, generateCSVTemplate, type CSVRecord } from "@/lib/csv-
 interface CSVUploaderProps {
   onUpload: (records: CSVRecord[]) => void;
   relay?: boolean;
-  scope?: "club" | "provincial" | "national" | "national_provincial";
+  scope?: "club" | "provincial" | "national";
   allowedAgeGroups?: string[];
   relayEvents?: string[];
 }
@@ -109,7 +109,7 @@ export default function CSVUploader({
     URL.revokeObjectURL(url);
   };
 
-  const wantsProvince = scope === "national" || scope === "national_provincial";
+  const wantsProvince = scope === "national";
   const wantsClub = scope !== "club";
 
   return (

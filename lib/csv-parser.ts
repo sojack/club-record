@@ -77,7 +77,7 @@ interface RawCSVRow {
 
 export interface RelayParseOptions {
   relay?: boolean;
-  scope?: "club" | "provincial" | "national" | "national_provincial";
+  scope?: "club" | "provincial" | "national";
   /** Allowed standard age-group names; when provided, non-matching rows error. */
   allowedAgeGroups?: string[];
 }
@@ -184,7 +184,7 @@ export function parseRecordsCSV(
 
     const rawScope = relayOptions.scope;
     const scope =
-      rawScope === "national" || rawScope === "national_provincial"
+      rawScope === "national"
         ? "national"
         : rawScope === "provincial"
         ? "provincial"
@@ -261,7 +261,7 @@ export function parseRecordsCSV(
 
 export interface RelayTemplateOptions {
   relay?: boolean;
-  scope?: "club" | "provincial" | "national" | "national_provincial";
+  scope?: "club" | "provincial" | "national";
   ageGroups?: string[];
   relayEvents?: string[];
 }
@@ -280,10 +280,9 @@ export function generateCSVTemplate(options: RelayTemplateOptions = {}): string 
 
   const wantsClub =
     options.scope === "provincial" ||
-    options.scope === "national" ||
-    options.scope === "national_provincial";
+    options.scope === "national";
   const wantsProvince =
-    options.scope === "national" || options.scope === "national_provincial";
+    options.scope === "national";
   const headers = [
     "Event", "AgeGroup", "Time", "Name1", "Name2", "Name3", "Name4",
     ...(wantsClub ? ["Club"] : []),

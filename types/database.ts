@@ -37,7 +37,7 @@ export interface RecordList {
   course_type: "SCM" | "SCY" | "LCM";
   gender: "male" | "female" | "mixed" | null;
   record_type: "individual" | "relay";
-  scope: "club" | "provincial" | "national" | "national_provincial";
+  scope: "club" | "provincial" | "national";
   created_at: string;
   updated_at: string;  // DB-managed: set on insert, bumped by trigger on edit
 }

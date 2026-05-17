@@ -26,7 +26,7 @@ interface RecordTableProps {
   readOnly?: boolean;
   courseType?: "LCM" | "SCM" | "SCY";
   recordType?: "individual" | "relay";
-  scope?: "club" | "provincial" | "national" | "national_provincial";
+  scope?: "club" | "provincial" | "national";
   ageGroups?: string[];
   relayEvents?: string[];
 }
@@ -48,7 +48,7 @@ function getStandardEvents(courseType?: string): string[] {
 export default function RecordTable({ records, onSave, onDelete, onBreakRecord, readOnly = false, courseType, recordType = "individual", scope = "club", ageGroups = [], relayEvents = [] }: RecordTableProps) {
   const isRelay = recordType === "relay";
   const showHolderClub = scope !== "club";
-  const showProvince = scope === "national" || scope === "national_provincial";
+  const showProvince = scope === "national";
   const showAgeGroup = isRelay || showHolderClub;
   const ageGroupOptions = Array.from(
     new Set([
