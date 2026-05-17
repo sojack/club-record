@@ -33,7 +33,9 @@ export interface RecordList {
   title: string;
   slug: string;
   course_type: "SCM" | "SCY" | "LCM";
-  gender: "male" | "female" | null;
+  gender: "male" | "female" | "mixed" | null;
+  record_type: "individual" | "relay";
+  scope: "club" | "national_provincial";
   created_at: string;
   updated_at: string;  // DB-managed: set on insert, bumped by trigger on edit
 }
@@ -44,6 +46,12 @@ export interface SwimRecord {
   event_name: string;
   time_ms: number;
   swimmer_name: string;
+  swimmer_name_2: string | null;
+  swimmer_name_3: string | null;
+  swimmer_name_4: string | null;
+  age_group: string | null;
+  record_club: string | null;
+  province: string | null;
   record_date: string | null;
   location: string | null;
   sort_order: number;
@@ -67,6 +75,13 @@ export interface RecordWithHistory {
 }
 
 export interface StandardEvent {
+  id: number;
+  name: string;
+  sort_order: number;
+  kind: "individual" | "relay";
+}
+
+export interface StandardAgeGroup {
   id: number;
   name: string;
   sort_order: number;
@@ -99,6 +114,11 @@ export interface Database {
         Row: StandardEvent;
         Insert: Omit<StandardEvent, "id">;
         Update: Partial<Omit<StandardEvent, "id">>;
+      };
+      standard_age_groups: {
+        Row: StandardAgeGroup;
+        Insert: Omit<StandardAgeGroup, "id">;
+        Update: Partial<Omit<StandardAgeGroup, "id">>;
       };
     };
   };
