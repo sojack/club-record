@@ -6,7 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useClub } from "@/contexts/ClubContext";
 import { parseRecordsCSV, CSVRecord } from "@/lib/csv-parser";
-import { scopeForClubLevel } from "@/lib/scope";
+import { scopeForClubLevel, type ListScope } from "@/lib/scope";
 
 interface ParsedFile {
   file: File;
@@ -15,6 +15,7 @@ interface ParsedFile {
   courseType: "LCM" | "SCM" | "SCY";
   gender: "male" | "female" | "mixed" | null;
   recordType: "individual" | "relay";
+  listScope: ListScope;
   records: CSVRecord[];
   errors: string[];
 }
@@ -69,9 +70,10 @@ export default function BulkUploadPage() {
     for (const file of Array.from(files)) {
       const content = await file.text();
       const { title, slug, courseType, gender, recordType } = parseFilename(file.name);
+      const listScope = scopeForClubLevel(selectedClub?.level);
       const { records, errors } = parseRecordsCSV(content, {
         relay: recordType === "relay",
-        scope: scopeForClubLevel(selectedClub?.level),
+        scope: listScope,
       });
 
       parsed.push({
@@ -81,6 +83,7 @@ export default function BulkUploadPage() {
         courseType,
         gender,
         recordType,
+        listScope,
         records,
         errors,
       });
@@ -106,8 +109,6 @@ export default function BulkUploadPage() {
     const success: string[] = [];
     const failed: string[] = [];
 
-    const listScope = scopeForClubLevel(selectedClub?.level);
-
     for (let i = 0; i < parsedFiles.length; i++) {
       const file = parsedFiles[i];
       setProgress({ current: i + 1, total: parsedFiles.length });
@@ -127,7 +128,7 @@ export default function BulkUploadPage() {
           course_type: file.courseType,
           gender: file.gender,
           record_type: file.recordType,
-          scope: listScope,
+          scope: file.listScope,
         })
         .select()
         .single();
