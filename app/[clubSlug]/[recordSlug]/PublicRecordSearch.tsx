@@ -17,7 +17,7 @@ export default function PublicRecordSearch({
   scope = "club",
 }: PublicRecordSearchProps) {
   const isRelay = recordType === "relay";
-  const isNatProv = isRelay && scope === "national_provincial";
+  const isNatProv = scope === "national_provincial";
   const formatTime = formatMsToTime;
   const [search, setSearch] = useState("");
   const [expandedHistory, setExpandedHistory] = useState<Set<string>>(new Set());
@@ -94,6 +94,222 @@ export default function PublicRecordSearch({
     );
   });
 
+  const grouped =
+    recordType === "individual" &&
+    currentRecords.some((r) => r.age_group && r.age_group.trim() !== "");
+
+  const ageBandKey = (band: string | null): number => {
+    if (!band) return Number.MAX_SAFE_INTEGER;
+    const m = band.match(/\d+/);
+    return m ? parseInt(m[0], 10) : Number.MAX_SAFE_INTEGER;
+  };
+
+  const groupedBands: Array<{ band: string; records: SwimRecord[] }> = (() => {
+    if (!grouped) return [];
+    const byBand = new Map<string, SwimRecord[]>();
+    for (const r of filteredRecords) {
+      const b = (r.age_group && r.age_group.trim()) || "—";
+      const arr = byBand.get(b) || [];
+      arr.push(r);
+      byBand.set(b, arr);
+    }
+    return Array.from(byBand.entries())
+      .sort(
+        (a, b) =>
+          ageBandKey(a[0] === "—" ? null : a[0]) -
+          ageBandKey(b[0] === "—" ? null : b[0])
+      )
+      .map(([band, recs]) => ({ band, records: recs }));
+  })();
+
+  const desktopColSpan = 5 + (isRelay ? 1 : 0) + (isNatProv ? 2 : 0);
+
+  const renderDesktopRecord = (record: SwimRecord) => {
+    const hasHistory = historyByRecordId.has(record.id);
+    const isExpanded = expandedHistory.has(record.id);
+    const history = historyByRecordId.get(record.id) || [];
+    return (
+      <React.Fragment key={record.id}>
+        <tr>
+          <td className="px-4 py-3 text-gray-900 dark:text-white">
+            <span className="flex items-center gap-2">
+              {hasHistory && (
+                <button
+                  type="button"
+                  onClick={() => toggleHistory(record.id)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  title={isExpanded ? "Hide history" : "Show previous records"}
+                >
+                  {isExpanded ? "▼" : "▶"}
+                </button>
+              )}
+              {record.event_name}
+            </span>
+          </td>
+          {isRelay && (
+            <td className="px-4 py-3 text-gray-900 dark:text-white">
+              {record.age_group || "-"}
+            </td>
+          )}
+          <td className="px-4 py-3 text-gray-900 dark:text-white">
+            <span className="flex items-center gap-1">
+              <span className="font-mono">
+                {record.time_ms > 0 ? formatTime(record.time_ms) : "-"}
+              </span>
+              <RecordFlags record={record} size="sm" />
+            </span>
+          </td>
+          <td className="px-4 py-3 text-gray-900 dark:text-white">
+            {isRelay
+              ? [record.swimmer_name, record.swimmer_name_2, record.swimmer_name_3, record.swimmer_name_4]
+                  .filter((n) => n && n.trim())
+                  .map((n, i) => <div key={i}>{n}</div>)
+              : record.swimmer_name || "-"}
+          </td>
+          {isNatProv && (
+            <>
+              <td className="hidden px-4 py-3 text-gray-500 dark:text-gray-400 sm:table-cell">
+                {record.record_club || "-"}
+              </td>
+              <td className="hidden px-4 py-3 text-gray-500 dark:text-gray-400 sm:table-cell">
+                {record.province || "-"}
+              </td>
+            </>
+          )}
+          <td className="hidden px-4 py-3 text-gray-500 dark:text-gray-400 md:table-cell">
+            {formatDate(record.record_date)}
+          </td>
+          <td className="hidden px-4 py-3 text-gray-500 dark:text-gray-400 lg:table-cell">
+            {record.location || "-"}
+          </td>
+        </tr>
+        {isExpanded && history.map((historyRecord) => (
+          <tr
+            key={historyRecord.id}
+            className="bg-gray-50/50 dark:bg-gray-800/50"
+          >
+            <td className="px-4 py-2 text-gray-500 dark:text-gray-400">
+              <span className="ml-6 text-sm">↳ {historyRecord.event_name}</span>
+            </td>
+            {isRelay && (
+              <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
+                {historyRecord.age_group || "-"}
+              </td>
+            )}
+            <td className="px-4 py-2 text-gray-500 dark:text-gray-400">
+              <span className="flex items-center gap-1">
+                <span className="font-mono text-sm">
+                  {historyRecord.time_ms > 0 ? formatTime(historyRecord.time_ms) : "-"}
+                </span>
+                <RecordFlags record={historyRecord} size="sm" />
+              </span>
+            </td>
+            <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
+              {historyRecord.swimmer_name || "-"}
+            </td>
+            {isNatProv && (
+              <>
+                <td className="hidden px-4 py-2 text-sm text-gray-500 dark:text-gray-400 sm:table-cell">
+                  {historyRecord.record_club || "-"}
+                </td>
+                <td className="hidden px-4 py-2 text-sm text-gray-500 dark:text-gray-400 sm:table-cell">
+                  {historyRecord.province || "-"}
+                </td>
+              </>
+            )}
+            <td className="hidden px-4 py-2 text-sm text-gray-500 dark:text-gray-400 md:table-cell">
+              {formatDate(historyRecord.record_date)}
+            </td>
+            <td className="hidden px-4 py-2 text-sm text-gray-500 dark:text-gray-400 lg:table-cell">
+              {historyRecord.location || "-"}
+            </td>
+          </tr>
+        ))}
+      </React.Fragment>
+    );
+  };
+
+  const renderMobileCard = (record: SwimRecord) => {
+    const hasHistory = historyByRecordId.has(record.id);
+    const isExpanded = expandedHistory.has(record.id);
+    const history = historyByRecordId.get(record.id) || [];
+    return (
+      <div key={`mobile-${record.id}`}>
+        <div className="rounded-lg bg-white p-4 shadow-sm dark:bg-gray-800">
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-2 font-medium text-gray-900 dark:text-white">
+              {hasHistory && (
+                <button
+                  type="button"
+                  onClick={() => toggleHistory(record.id)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  {isExpanded ? "▼" : "▶"}
+                </button>
+              )}
+              {record.event_name}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="font-mono text-blue-600 dark:text-blue-400">
+                {record.time_ms > 0 ? formatTime(record.time_ms) : "-"}
+              </span>
+              <RecordFlags record={record} size="sm" />
+            </span>
+          </div>
+          <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+            {isRelay
+              ? [record.swimmer_name, record.swimmer_name_2, record.swimmer_name_3, record.swimmer_name_4]
+                  .filter((n) => n && n.trim())
+                  .join(", ")
+              : record.swimmer_name}
+          </div>
+          {isRelay && (record.age_group || isNatProv) && (
+            <div className="mt-1 text-xs text-gray-500 dark:text-gray-500">
+              {record.age_group}
+              {isNatProv && (record.record_club || record.province) && " • "}
+              {isNatProv && [record.record_club, record.province].filter(Boolean).join(", ")}
+            </div>
+          )}
+          {(record.record_date || record.location) && (
+            <div className="mt-1 text-xs text-gray-500 dark:text-gray-500">
+              {record.record_date && formatDate(record.record_date)}
+              {record.record_date && record.location && " • "}
+              {record.location}
+            </div>
+          )}
+        </div>
+        {isExpanded && history.map((historyRecord) => (
+          <div
+            key={`mobile-history-${historyRecord.id}`}
+            className="ml-4 mt-1 rounded-lg bg-gray-50 p-3 dark:bg-gray-800/50"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                ↳ {historyRecord.event_name}
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="font-mono text-sm text-gray-500 dark:text-gray-400">
+                  {historyRecord.time_ms > 0 ? formatTime(historyRecord.time_ms) : "-"}
+                </span>
+                <RecordFlags record={historyRecord} size="sm" />
+              </span>
+            </div>
+            <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {historyRecord.swimmer_name}
+            </div>
+            {(historyRecord.record_date || historyRecord.location) && (
+              <div className="mt-1 text-xs text-gray-400">
+                {historyRecord.record_date && formatDate(historyRecord.record_date)}
+                {historyRecord.record_date && historyRecord.location && " • "}
+                {historyRecord.location}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   // Check if any records have flags
   const hasAnyFlags = currentRecords.some(
     (r) => r.is_national || r.is_current_national || r.is_provincial || r.is_current_provincial || r.is_split || r.is_relay_split || r.is_new || r.is_world_record
@@ -150,115 +366,25 @@ export default function PublicRecordSearch({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredRecords.map((record) => {
-                const hasHistory = historyByRecordId.has(record.id);
-                const isExpanded = expandedHistory.has(record.id);
-                const history = historyByRecordId.get(record.id) || [];
-
-                return (
-                  <React.Fragment key={record.id}>
-                    <tr>
-                      <td className="px-4 py-3 text-gray-900 dark:text-white">
-                        <span className="flex items-center gap-2">
-                          {hasHistory && (
-                            <button
-                              type="button"
-                              onClick={() => toggleHistory(record.id)}
-                              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                              title={isExpanded ? "Hide history" : "Show previous records"}
-                            >
-                              {isExpanded ? "▼" : "▶"}
-                            </button>
-                          )}
-                          {record.event_name}
-                        </span>
-                      </td>
-                      {isRelay && (
-                        <td className="px-4 py-3 text-gray-900 dark:text-white">
-                          {record.age_group || "-"}
-                        </td>
-                      )}
-                      <td className="px-4 py-3 text-gray-900 dark:text-white">
-                        <span className="flex items-center gap-1">
-                          <span className="font-mono">
-                            {record.time_ms > 0 ? formatTime(record.time_ms) : "-"}
-                          </span>
-                          <RecordFlags record={record} size="sm" />
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-gray-900 dark:text-white">
-                        {isRelay
-                          ? [record.swimmer_name, record.swimmer_name_2, record.swimmer_name_3, record.swimmer_name_4]
-                              .filter((n) => n && n.trim())
-                              .map((n, i) => <div key={i}>{n}</div>)
-                          : record.swimmer_name || "-"}
-                      </td>
-                      {isNatProv && (
-                        <>
-                          <td className="hidden px-4 py-3 text-gray-500 dark:text-gray-400 sm:table-cell">
-                            {record.record_club || "-"}
-                          </td>
-                          <td className="hidden px-4 py-3 text-gray-500 dark:text-gray-400 sm:table-cell">
-                            {record.province || "-"}
-                          </td>
-                        </>
-                      )}
-                      <td className="hidden px-4 py-3 text-gray-500 dark:text-gray-400 md:table-cell">
-                        {formatDate(record.record_date)}
-                      </td>
-                      <td className="hidden px-4 py-3 text-gray-500 dark:text-gray-400 lg:table-cell">
-                        {record.location || "-"}
-                      </td>
-                    </tr>
-                    {isExpanded && history.map((historyRecord) => (
-                      <tr
-                        key={historyRecord.id}
-                        className="bg-gray-50/50 dark:bg-gray-800/50"
-                      >
-                        <td className="px-4 py-2 text-gray-500 dark:text-gray-400">
-                          <span className="ml-6 text-sm">↳ {historyRecord.event_name}</span>
-                        </td>
-                        {isRelay && (
-                          <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
-                            {historyRecord.age_group || "-"}
-                          </td>
-                        )}
-                        <td className="px-4 py-2 text-gray-500 dark:text-gray-400">
-                          <span className="flex items-center gap-1">
-                            <span className="font-mono text-sm">
-                              {historyRecord.time_ms > 0 ? formatTime(historyRecord.time_ms) : "-"}
-                            </span>
-                            <RecordFlags record={historyRecord} size="sm" />
-                          </span>
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
-                          {historyRecord.swimmer_name || "-"}
-                        </td>
-                        {isNatProv && (
-                          <>
-                            <td className="hidden px-4 py-2 text-sm text-gray-500 dark:text-gray-400 sm:table-cell">
-                              {historyRecord.record_club || "-"}
-                            </td>
-                            <td className="hidden px-4 py-2 text-sm text-gray-500 dark:text-gray-400 sm:table-cell">
-                              {historyRecord.province || "-"}
-                            </td>
-                          </>
-                        )}
-                        <td className="hidden px-4 py-2 text-sm text-gray-500 dark:text-gray-400 md:table-cell">
-                          {formatDate(historyRecord.record_date)}
-                        </td>
-                        <td className="hidden px-4 py-2 text-sm text-gray-500 dark:text-gray-400 lg:table-cell">
-                          {historyRecord.location || "-"}
+              {grouped
+                ? groupedBands.map((g) => (
+                    <React.Fragment key={`band-${g.band}`}>
+                      <tr className="bg-gray-100 dark:bg-gray-700/60">
+                        <td
+                          colSpan={desktopColSpan}
+                          className="px-4 py-2 text-sm font-semibold text-gray-800 dark:text-gray-200"
+                        >
+                          {g.band}
                         </td>
                       </tr>
-                    ))}
-                  </React.Fragment>
-                );
-              })}
+                      {g.records.map((record) => renderDesktopRecord(record))}
+                    </React.Fragment>
+                  ))
+                : filteredRecords.map((record) => renderDesktopRecord(record))}
               {filteredRecords.length === 0 && (
                 <tr>
                   <td
-                    colSpan={5 + (isRelay ? 1 : 0) + (isNatProv ? 2 : 0)}
+                    colSpan={desktopColSpan}
                     className="px-4 py-8 text-center text-gray-500 dark:text-gray-400"
                   >
                     {search
@@ -274,87 +400,16 @@ export default function PublicRecordSearch({
 
       {/* Mobile card view for smaller screens */}
       <div className="mt-6 space-y-3 md:hidden">
-        {filteredRecords.map((record) => {
-          const hasHistory = historyByRecordId.has(record.id);
-          const isExpanded = expandedHistory.has(record.id);
-          const history = historyByRecordId.get(record.id) || [];
-
-          return (
-            <div key={`mobile-${record.id}`}>
-              <div className="rounded-lg bg-white p-4 shadow-sm dark:bg-gray-800">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 font-medium text-gray-900 dark:text-white">
-                    {hasHistory && (
-                      <button
-                        type="button"
-                        onClick={() => toggleHistory(record.id)}
-                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                      >
-                        {isExpanded ? "▼" : "▶"}
-                      </button>
-                    )}
-                    {record.event_name}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="font-mono text-blue-600 dark:text-blue-400">
-                      {record.time_ms > 0 ? formatTime(record.time_ms) : "-"}
-                    </span>
-                    <RecordFlags record={record} size="sm" />
-                  </span>
+        {grouped
+          ? groupedBands.map((g) => (
+              <div key={`mband-${g.band}`} className="space-y-3">
+                <div className="px-1 pt-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  {g.band}
                 </div>
-                <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                  {isRelay
-                    ? [record.swimmer_name, record.swimmer_name_2, record.swimmer_name_3, record.swimmer_name_4]
-                        .filter((n) => n && n.trim())
-                        .join(", ")
-                    : record.swimmer_name}
-                </div>
-                {isRelay && (record.age_group || isNatProv) && (
-                  <div className="mt-1 text-xs text-gray-500 dark:text-gray-500">
-                    {record.age_group}
-                    {isNatProv && (record.record_club || record.province) && " • "}
-                    {isNatProv && [record.record_club, record.province].filter(Boolean).join(", ")}
-                  </div>
-                )}
-                {(record.record_date || record.location) && (
-                  <div className="mt-1 text-xs text-gray-500 dark:text-gray-500">
-                    {record.record_date && formatDate(record.record_date)}
-                    {record.record_date && record.location && " • "}
-                    {record.location}
-                  </div>
-                )}
+                {g.records.map((record) => renderMobileCard(record))}
               </div>
-              {isExpanded && history.map((historyRecord) => (
-                <div
-                  key={`mobile-history-${historyRecord.id}`}
-                  className="ml-4 mt-1 rounded-lg bg-gray-50 p-3 dark:bg-gray-800/50"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                      ↳ {historyRecord.event_name}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="font-mono text-sm text-gray-500 dark:text-gray-400">
-                        {historyRecord.time_ms > 0 ? formatTime(historyRecord.time_ms) : "-"}
-                      </span>
-                      <RecordFlags record={historyRecord} size="sm" />
-                    </span>
-                  </div>
-                  <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    {historyRecord.swimmer_name}
-                  </div>
-                  {(historyRecord.record_date || historyRecord.location) && (
-                    <div className="mt-1 text-xs text-gray-400">
-                      {historyRecord.record_date && formatDate(historyRecord.record_date)}
-                      {historyRecord.record_date && historyRecord.location && " • "}
-                      {historyRecord.location}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          );
-        })}
+            ))
+          : filteredRecords.map((record) => renderMobileCard(record))}
       </div>
     </>
   );
