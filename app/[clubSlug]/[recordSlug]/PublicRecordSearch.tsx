@@ -17,7 +17,8 @@ export default function PublicRecordSearch({
   scope = "club",
 }: PublicRecordSearchProps) {
   const isRelay = recordType === "relay";
-  const isNatProv = scope === "national_provincial";
+  const showHolderClub = scope !== "club";
+  const showProvince = scope === "national" || scope === "national_provincial";
   const formatTime = formatMsToTime;
   const [search, setSearch] = useState("");
   const [expandedHistory, setExpandedHistory] = useState<Set<string>>(new Set());
@@ -122,7 +123,7 @@ export default function PublicRecordSearch({
       .map(([band, recs]) => ({ band, records: recs }));
   })();
 
-  const desktopColSpan = 5 + (isRelay ? 1 : 0) + (isNatProv ? 2 : 0);
+  const desktopColSpan = 5 + (isRelay ? 1 : 0) + (showHolderClub ? 1 : 0) + (showProvince ? 1 : 0);
 
   const renderDesktopRecord = (record: SwimRecord) => {
     const hasHistory = historyByRecordId.has(record.id);
@@ -166,15 +167,15 @@ export default function PublicRecordSearch({
                   .map((n, i) => <div key={i}>{n}</div>)
               : record.swimmer_name || "-"}
           </td>
-          {isNatProv && (
-            <>
-              <td className="hidden px-4 py-3 text-gray-500 dark:text-gray-400 sm:table-cell">
-                {record.record_club || "-"}
-              </td>
-              <td className="hidden px-4 py-3 text-gray-500 dark:text-gray-400 sm:table-cell">
-                {record.province || "-"}
-              </td>
-            </>
+          {showHolderClub && (
+            <td className="hidden px-4 py-3 text-gray-500 dark:text-gray-400 sm:table-cell">
+              {record.record_club || "-"}
+            </td>
+          )}
+          {showProvince && (
+            <td className="hidden px-4 py-3 text-gray-500 dark:text-gray-400 sm:table-cell">
+              {record.province || "-"}
+            </td>
           )}
           <td className="hidden px-4 py-3 text-gray-500 dark:text-gray-400 md:table-cell">
             {formatDate(record.record_date)}
@@ -207,15 +208,15 @@ export default function PublicRecordSearch({
             <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
               {historyRecord.swimmer_name || "-"}
             </td>
-            {isNatProv && (
-              <>
-                <td className="hidden px-4 py-2 text-sm text-gray-500 dark:text-gray-400 sm:table-cell">
-                  {historyRecord.record_club || "-"}
-                </td>
-                <td className="hidden px-4 py-2 text-sm text-gray-500 dark:text-gray-400 sm:table-cell">
-                  {historyRecord.province || "-"}
-                </td>
-              </>
+            {showHolderClub && (
+              <td className="hidden px-4 py-2 text-sm text-gray-500 dark:text-gray-400 sm:table-cell">
+                {historyRecord.record_club || "-"}
+              </td>
+            )}
+            {showProvince && (
+              <td className="hidden px-4 py-2 text-sm text-gray-500 dark:text-gray-400 sm:table-cell">
+                {historyRecord.province || "-"}
+              </td>
             )}
             <td className="hidden px-4 py-2 text-sm text-gray-500 dark:text-gray-400 md:table-cell">
               {formatDate(historyRecord.record_date)}
@@ -263,11 +264,11 @@ export default function PublicRecordSearch({
                   .join(", ")
               : record.swimmer_name}
           </div>
-          {isRelay && (record.age_group || isNatProv) && (
+          {isRelay && (record.age_group || showHolderClub) && (
             <div className="mt-1 text-xs text-gray-500 dark:text-gray-500">
               {record.age_group}
-              {isNatProv && (record.record_club || record.province) && " • "}
-              {isNatProv && [record.record_club, record.province].filter(Boolean).join(", ")}
+              {showHolderClub && (record.record_club || (showProvince && record.province)) && " • "}
+              {showHolderClub && [record.record_club, showProvince ? record.province : null].filter(Boolean).join(", ")}
             </div>
           )}
           {(record.record_date || record.location) && (
@@ -347,15 +348,15 @@ export default function PublicRecordSearch({
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                   {isRelay ? "Swimmers" : "Swimmer"}
                 </th>
-                {isNatProv && (
-                  <>
-                    <th className="hidden px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 sm:table-cell">
-                      Club
-                    </th>
-                    <th className="hidden px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 sm:table-cell">
-                      Prov
-                    </th>
-                  </>
+                {showHolderClub && (
+                  <th className="hidden px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 sm:table-cell">
+                    Club
+                  </th>
+                )}
+                {showProvince && (
+                  <th className="hidden px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 sm:table-cell">
+                    Prov
+                  </th>
                 )}
                 <th className="hidden px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 md:table-cell">
                   Date
