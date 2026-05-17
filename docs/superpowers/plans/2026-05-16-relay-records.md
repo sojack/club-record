@@ -285,7 +285,7 @@ export interface RelayParseOptions {
 }
 ```
 
-In the `columnMaps` object inside `parseRecordsCSV` (line 96-110), add these entries (keep existing ones):
+In the `columnMaps` object inside `parseRecordsCSV` (line 96-110), add `"name1"` to the **existing** `swimmer` alias array so the relay template's `Name1` header round-trips (the existing entry is `swimmer: ["swimmer", "swimmer_name", "swimmername", "name", "athlete"]` → make it `swimmer: ["swimmer", "swimmer_name", "swimmername", "name", "name1", "athlete"]`), then add these new entries (keep all existing ones):
 
 ```ts
     swimmer2: ["name2", "swimmer2", "swimmer_name_2", "name_2"],
