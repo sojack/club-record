@@ -19,7 +19,9 @@ export default function NewRecordListPage() {
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [courseType, setCourseType] = useState<"LCM" | "SCM" | "SCY">("LCM");
-  const [gender, setGender] = useState<"male" | "female">("male");
+  const [gender, setGender] = useState<"male" | "female" | "mixed">("male");
+  const [recordType, setRecordType] = useState<"individual" | "relay">("individual");
+  const [scope, setScope] = useState<"club" | "national_provincial">("club");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -46,6 +48,8 @@ export default function NewRecordListPage() {
         slug,
         course_type: courseType,
         gender,
+        record_type: recordType,
+        scope: recordType === "relay" ? scope : "club",
       })
       .select()
       .single();
@@ -153,6 +157,47 @@ export default function NewRecordListPage() {
 
           <div>
             <label
+              htmlFor="recordType"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
+              Record Type
+            </label>
+            <select
+              id="recordType"
+              value={recordType}
+              onChange={(e) => setRecordType(e.target.value as "individual" | "relay")}
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            >
+              <option value="individual">Individual</option>
+              <option value="relay">Relay</option>
+            </select>
+          </div>
+
+          {recordType === "relay" && (
+            <div>
+              <label
+                htmlFor="scope"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                Scope
+              </label>
+              <select
+                id="scope"
+                value={scope}
+                onChange={(e) => setScope(e.target.value as "club" | "national_provincial")}
+                className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              >
+                <option value="club">Club records (no holding club)</option>
+                <option value="national_provincial">National &amp; Provincial (club + province)</option>
+              </select>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                National/Provincial lists require a holding Club and Province on every record.
+              </p>
+            </div>
+          )}
+
+          <div>
+            <label
               htmlFor="courseType"
               className="block text-sm font-medium text-gray-700 dark:text-gray-300"
             >
@@ -180,11 +225,12 @@ export default function NewRecordListPage() {
             <select
               id="gender"
               value={gender}
-              onChange={(e) => setGender(e.target.value as "male" | "female")}
+              onChange={(e) => setGender(e.target.value as "male" | "female" | "mixed")}
               className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             >
               <option value="male">Male</option>
               <option value="female">Female</option>
+              {recordType === "relay" && <option value="mixed">Mixed</option>}
             </select>
           </div>
 
