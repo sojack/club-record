@@ -63,6 +63,10 @@ export default function AdminUploadPage({
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const [results, setResults] = useState<{ success: string[]; failed: string[] } | null>(null);
+  const [levelInput, setLevelInput] = useState<"regular" | "provincial" | "national">("regular");
+  const [provinceInput, setProvinceInput] = useState("");
+  const [savingLevel, setSavingLevel] = useState(false);
+  const [levelMsg, setLevelMsg] = useState<string | null>(null);
 
   useEffect(() => {
     params.then((p) => setClubId(p.clubId));
@@ -85,6 +89,41 @@ export default function AdminUploadPage({
 
     setClub(data as Club | null);
     setLoading(false);
+  };
+
+  useEffect(() => {
+    if (club) {
+      setLevelInput((club.level ?? "regular") as "regular" | "provincial" | "national");
+      setProvinceInput(club.province ?? "");
+    }
+  }, [club]);
+
+  const handleSaveLevel = async () => {
+    if (!club) return;
+    setSavingLevel(true);
+    setLevelMsg(null);
+    try {
+      const res = await fetch("/api/admin/club-level", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clubId: club.id,
+          level: levelInput,
+          province: levelInput === "provincial" ? provinceInput : null,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setLevelMsg("Club level saved.");
+        loadClub();
+      } else {
+        setLevelMsg(`Error: ${data.error}`);
+      }
+    } catch (err) {
+      setLevelMsg(`Error: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setSavingLevel(false);
+    }
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -232,6 +271,54 @@ export default function AdminUploadPage({
         <p className="mt-2 text-gray-600 dark:text-gray-400">
           {club.short_name} &bull; /{club.slug}
         </p>
+      </div>
+
+      {/* Club Level */}
+      <div className="mb-6 rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+        <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+          Club level
+        </h2>
+        <div className="flex flex-wrap items-end gap-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">
+              Level
+            </label>
+            <select
+              value={levelInput}
+              onChange={(e) =>
+                setLevelInput(e.target.value as "regular" | "provincial" | "national")
+              }
+              className="mt-1 block rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            >
+              <option value="regular">Regular</option>
+              <option value="provincial">Provincial</option>
+              <option value="national">National</option>
+            </select>
+          </div>
+          {levelInput === "provincial" && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">
+                Province (e.g. ON)
+              </label>
+              <input
+                type="text"
+                value={provinceInput}
+                onChange={(e) => setProvinceInput(e.target.value)}
+                className="mt-1 block w-24 rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+          )}
+          <button
+            onClick={handleSaveLevel}
+            disabled={savingLevel}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            {savingLevel ? "Saving…" : "Save"}
+          </button>
+        </div>
+        {levelMsg && (
+          <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">{levelMsg}</p>
+        )}
       </div>
 
       {/* Results */}
