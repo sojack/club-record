@@ -278,10 +278,16 @@ export function generateCSVTemplate(options: RelayTemplateOptions = {}): string 
     return [headers.join(","), exampleRow.join(",")].join("\n");
   }
 
-  const natProv = options.scope === "national_provincial";
+  const wantsClub =
+    options.scope === "provincial" ||
+    options.scope === "national" ||
+    options.scope === "national_provincial";
+  const wantsProvince =
+    options.scope === "national" || options.scope === "national_provincial";
   const headers = [
     "Event", "AgeGroup", "Time", "Name1", "Name2", "Name3", "Name4",
-    ...(natProv ? ["Club", "Province"] : []),
+    ...(wantsClub ? ["Club"] : []),
+    ...(wantsProvince ? ["Province"] : []),
     "Date", "Location",
     "is_World_Record", "is_National", "is_Current_National",
     "is_Provincial", "is_Current_Provincial", "is_New",
@@ -290,12 +296,10 @@ export function generateCSVTemplate(options: RelayTemplateOptions = {}): string 
     ? options.relayEvents
     : ["4 X 50 Freestyle Relay"];
   const ageGroups = options.ageGroups?.length ? options.ageGroups : [""];
-  const blanks = (natProv ? 8 : 6) + 0; // Time..is_New columns left blank
   const rows = events.flatMap((ev) =>
     ageGroups.map((ag) =>
       [ev, ag, ...Array(headers.length - 2).fill("")].join(",")
     )
   );
-  void blanks;
   return [headers.join(","), ...rows].join("\n");
 }

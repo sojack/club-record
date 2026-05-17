@@ -419,7 +419,7 @@ export default function RecordListDetailPage() {
                 )}
                 {recordList.record_type === "relay" && (
                   <span className="rounded bg-teal-100 px-2 py-0.5 text-sm font-medium text-teal-700 dark:bg-teal-900 dark:text-teal-300">
-                    Relay · {recordList.scope === "national_provincial" ? "Nat/Prov" : "Club"}
+                    Relay · {recordList.scope === "national" || recordList.scope === "national_provincial" ? "National" : recordList.scope === "provincial" ? "Provincial" : "Club"}
                   </span>
                 )}
                 <span className="text-sm text-gray-500 dark:text-gray-400">

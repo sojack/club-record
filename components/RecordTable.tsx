@@ -47,8 +47,9 @@ function getStandardEvents(courseType?: string): string[] {
 
 export default function RecordTable({ records, onSave, onDelete, onBreakRecord, readOnly = false, courseType, recordType = "individual", scope = "club", ageGroups = [], relayEvents = [] }: RecordTableProps) {
   const isRelay = recordType === "relay";
-  const isNatProv = scope === "national_provincial";
-  const showAgeGroup = isRelay || isNatProv;
+  const showHolderClub = scope !== "club";
+  const showProvince = scope === "national" || scope === "national_provincial";
+  const showAgeGroup = isRelay || showHolderClub;
   const ageGroupOptions = Array.from(
     new Set([
       ...ageGroups,
@@ -452,15 +453,15 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
               <th className="px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                 {isRelay ? "Swimmers" : "Swimmer"}
               </th>
-              {isNatProv && (
-                <>
-                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Club
-                  </th>
-                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Prov
-                  </th>
-                </>
+              {showHolderClub && (
+                <th className="px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Club
+                </th>
+              )}
+              {showProvince && (
+                <th className="px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Prov
+                </th>
               )}
               <th className="px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                 Date
@@ -627,35 +628,35 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
                         />
                       )}
                     </td>
-                    {isNatProv && (
-                      <>
-                        <td className="px-3 py-2">
-                          {readOnly ? (
-                            <span className="px-2 py-1 text-sm text-gray-900 dark:text-white">{record.record_club || ""}</span>
-                          ) : (
-                            <input
-                              type="text"
-                              value={record.record_club || ""}
-                              onChange={(e) => handleCellChange(index, "record_club", e.target.value)}
-                              className="w-24 rounded border border-transparent bg-transparent px-2 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none dark:text-white"
-                              placeholder="Club"
-                            />
-                          )}
-                        </td>
-                        <td className="px-3 py-2">
-                          {readOnly ? (
-                            <span className="px-2 py-1 text-sm text-gray-900 dark:text-white">{record.province || ""}</span>
-                          ) : (
-                            <input
-                              type="text"
-                              value={record.province || ""}
-                              onChange={(e) => handleCellChange(index, "province", e.target.value)}
-                              className="w-16 rounded border border-transparent bg-transparent px-2 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none dark:text-white"
-                              placeholder="Prov"
-                            />
-                          )}
-                        </td>
-                      </>
+                    {showHolderClub && (
+                      <td className="px-3 py-2">
+                        {readOnly ? (
+                          <span className="px-2 py-1 text-sm text-gray-900 dark:text-white">{record.record_club || ""}</span>
+                        ) : (
+                          <input
+                            type="text"
+                            value={record.record_club || ""}
+                            onChange={(e) => handleCellChange(index, "record_club", e.target.value)}
+                            className="w-24 rounded border border-transparent bg-transparent px-2 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none dark:text-white"
+                            placeholder="Club"
+                          />
+                        )}
+                      </td>
+                    )}
+                    {showProvince && (
+                      <td className="px-3 py-2">
+                        {readOnly ? (
+                          <span className="px-2 py-1 text-sm text-gray-900 dark:text-white">{record.province || ""}</span>
+                        ) : (
+                          <input
+                            type="text"
+                            value={record.province || ""}
+                            onChange={(e) => handleCellChange(index, "province", e.target.value)}
+                            className="w-16 rounded border border-transparent bg-transparent px-2 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none dark:text-white"
+                            placeholder="Prov"
+                          />
+                        )}
+                      </td>
                     )}
                     <td className="px-3 py-2">
                       {readOnly ? (
@@ -788,19 +789,19 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
                           {historyRecord.swimmer_name}
                         </span>
                       </td>
-                      {isNatProv && (
-                        <>
-                          <td className="px-3 py-2">
-                            <span className="px-2 py-1 text-sm text-gray-500 dark:text-gray-400">
-                              {historyRecord.record_club || ""}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2">
-                            <span className="px-2 py-1 text-sm text-gray-500 dark:text-gray-400">
-                              {historyRecord.province || ""}
-                            </span>
-                          </td>
-                        </>
+                      {showHolderClub && (
+                        <td className="px-3 py-2">
+                          <span className="px-2 py-1 text-sm text-gray-500 dark:text-gray-400">
+                            {historyRecord.record_club || ""}
+                          </span>
+                        </td>
+                      )}
+                      {showProvince && (
+                        <td className="px-3 py-2">
+                          <span className="px-2 py-1 text-sm text-gray-500 dark:text-gray-400">
+                            {historyRecord.province || ""}
+                          </span>
+                        </td>
                       )}
                       <td className="px-3 py-2">
                         <span className="px-2 py-1 text-sm text-gray-500 dark:text-gray-400">
@@ -876,7 +877,7 @@ export default function RecordTable({ records, onSave, onDelete, onBreakRecord, 
             {editableRecords.length === 0 && (
               <tr>
                 <td
-                  colSpan={(readOnly ? 7 : 8) + (showAgeGroup ? 1 : 0) + (isNatProv ? 2 : 0)}
+                  colSpan={(readOnly ? 7 : 8) + (showAgeGroup ? 1 : 0) + (showHolderClub ? 1 : 0) + (showProvince ? 1 : 0)}
                   className="px-3 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
                 >
                   {readOnly ? "No records yet." : "No records yet. Add a row or import from CSV."}

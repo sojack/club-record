@@ -109,6 +109,9 @@ export default function CSVUploader({
     URL.revokeObjectURL(url);
   };
 
+  const wantsProvince = scope === "national" || scope === "national_provincial";
+  const wantsClub = scope !== "club";
+
   return (
     <div className="space-y-4">
       <div
@@ -135,8 +138,10 @@ export default function CSVUploader({
         </p>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-500">
           {relay
-            ? scope === "national_provincial"
+            ? wantsProvince
               ? "Expected columns: Event, AgeGroup, Time, Name1-Name4, Club, Province, Date, Location"
+              : wantsClub
+              ? "Expected columns: Event, AgeGroup, Time, Name1-Name4, Club, Date, Location"
               : "Expected columns: Event, AgeGroup, Time, Name1-Name4, Date, Location"
             : "Expected columns: Event, Time, Swimmer, Date (optional), Location (optional)"}
         </p>
