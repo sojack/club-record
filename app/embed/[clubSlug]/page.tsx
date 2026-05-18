@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { unwrap } from "@/lib/supabase/guard";
 import type { Club, RecordList, SwimRecord } from "@/types/database";
 import PublicRecordSearch from "@/app/[clubSlug]/[recordSlug]/PublicRecordSearch";
 
@@ -16,51 +17,46 @@ export default async function EmbedPage({
   const { list: listSlug } = await searchParams;
   const supabase = await createClient();
 
-  const { data: club } = await supabase
-    .from("clubs")
-    .select("*")
-    .eq("slug", clubSlug)
-    .single();
+  const typedClub = unwrap<Club>(
+    await supabase.from("clubs").select("*").eq("slug", clubSlug).maybeSingle(),
+    `clubs: slug=${clubSlug}`
+  );
 
-  if (!club) {
+  if (!typedClub) {
     notFound();
   }
 
-  const typedClub = club as Club;
-
-  // Find the requested list, or default to the first one
-  let recordList: RecordList | null = null;
-
-  if (listSlug) {
-    const { data } = await supabase
-      .from("record_lists")
-      .select("*")
-      .eq("club_id", typedClub.id)
-      .eq("slug", listSlug)
-      .single();
-    recordList = data as RecordList | null;
-  } else {
-    const { data } = await supabase
-      .from("record_lists")
-      .select("*")
-      .eq("club_id", typedClub.id)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .single();
-    recordList = data as RecordList | null;
-  }
+  const recordList = unwrap<RecordList>(
+    listSlug
+      ? await supabase
+          .from("record_lists")
+          .select("*")
+          .eq("club_id", typedClub.id)
+          .eq("slug", listSlug)
+          .maybeSingle()
+      : await supabase
+          .from("record_lists")
+          .select("*")
+          .eq("club_id", typedClub.id)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle(),
+    `record_lists: club_id=${typedClub.id} list=${listSlug ?? "(default)"}`
+  );
 
   if (!recordList) {
     notFound();
   }
 
-  const { data: records } = await supabase
-    .from("records")
-    .select("*")
-    .eq("record_list_id", recordList.id)
-    .order("sort_order", { ascending: true });
-
-  const typedRecords = (records || []) as SwimRecord[];
+  const typedRecords =
+    unwrap<SwimRecord[]>(
+      await supabase
+        .from("records")
+        .select("*")
+        .eq("record_list_id", recordList.id)
+        .order("sort_order", { ascending: true }),
+      `records: record_list_id=${recordList.id}`
+    ) ?? [];
 
   return (
     <div>

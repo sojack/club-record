@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { unwrap } from "@/lib/supabase/guard";
 import type { Club, RecordList, SwimRecord } from "@/types/database";
 import PublicRecordSearch from "./PublicRecordSearch";
 
@@ -12,76 +13,86 @@ export async function generateMetadata({ params }: RecordPageProps) {
   const { clubSlug, recordSlug } = await params;
   const supabase = await createClient();
 
-  const { data: club } = await supabase
-    .from("clubs")
-    .select("*")
-    .eq("slug", clubSlug)
-    .single();
+  try {
+    const club = unwrap<Club>(
+      await supabase
+        .from("clubs")
+        .select("*")
+        .eq("slug", clubSlug)
+        .maybeSingle(),
+      `clubs(meta): slug=${clubSlug}`
+    );
 
-  if (!club) {
-    return { title: "Not Found" };
+    if (!club) {
+      return { title: "Not Found" };
+    }
+
+    const recordList = unwrap<RecordList>(
+      await supabase
+        .from("record_lists")
+        .select("*")
+        .eq("club_id", club.id)
+        .eq("slug", recordSlug)
+        .maybeSingle(),
+      `record_lists(meta): club_id=${club.id} slug=${recordSlug}`
+    );
+
+    if (!recordList) {
+      return { title: "Not Found" };
+    }
+
+    return {
+      title: `${recordList.title} - ${club.short_name} Club Records`,
+      description: `${recordList.title} records for ${club.full_name}`,
+    };
+  } catch {
+    return { title: "Club Records" };
   }
-
-  const { data: recordList } = await supabase
-    .from("record_lists")
-    .select("*")
-    .eq("club_id", (club as Club).id)
-    .eq("slug", recordSlug)
-    .single();
-
-  if (!recordList) {
-    return { title: "Not Found" };
-  }
-
-  return {
-    title: `${(recordList as RecordList).title} - ${(club as Club).short_name} Club Records`,
-    description: `${(recordList as RecordList).title} records for ${(club as Club).full_name}`,
-  };
 }
 
 export default async function RecordPage({ params }: RecordPageProps) {
   const { clubSlug, recordSlug } = await params;
   const supabase = await createClient();
 
-  const { data: club } = await supabase
-    .from("clubs")
-    .select("*")
-    .eq("slug", clubSlug)
-    .single();
+  const club = unwrap<Club>(
+    await supabase.from("clubs").select("*").eq("slug", clubSlug).maybeSingle(),
+    `clubs: slug=${clubSlug}`
+  );
 
   if (!club) {
     notFound();
   }
 
-  const typedClub = club as Club;
+  const typedRecordList = unwrap<RecordList>(
+    await supabase
+      .from("record_lists")
+      .select("*")
+      .eq("club_id", club.id)
+      .eq("slug", recordSlug)
+      .maybeSingle(),
+    `record_lists: club_id=${club.id} slug=${recordSlug}`
+  );
 
-  const { data: recordList } = await supabase
-    .from("record_lists")
-    .select("*")
-    .eq("club_id", typedClub.id)
-    .eq("slug", recordSlug)
-    .single();
-
-  if (!recordList) {
+  if (!typedRecordList) {
     notFound();
   }
 
-  const typedRecordList = recordList as RecordList;
-
-  const { data: records } = await supabase
-    .from("records")
-    .select("*")
-    .eq("record_list_id", typedRecordList.id)
-    .order("sort_order", { ascending: true });
-
-  const typedRecords = (records || []) as SwimRecord[];
+  const typedRecords =
+    unwrap<SwimRecord[]>(
+      await supabase
+        .from("records")
+        .select("*")
+        .eq("record_list_id", typedRecordList.id)
+        .order("sort_order", { ascending: true }),
+      `records: record_list_id=${typedRecordList.id}`
+    ) ?? [];
   const currentRecordsCount = typedRecords.filter(r => r.is_current !== false).length;
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-2">
         <Link
-          href={`/${typedClub.slug}`}
+          href={`/${club.slug}`}
           className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
         >
           &larr; All Record Lists

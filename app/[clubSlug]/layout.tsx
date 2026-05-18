@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
+import { unwrap } from "@/lib/supabase/guard";
 import type { Club } from "@/types/database";
 
 interface ClubLayoutProps {
@@ -13,27 +14,24 @@ export default async function ClubLayout({ children, params }: ClubLayoutProps) 
   const { clubSlug } = await params;
   const supabase = await createClient();
 
-  const { data: club } = await supabase
-    .from("clubs")
-    .select("*")
-    .eq("slug", clubSlug)
-    .single();
+  const club = unwrap<Club>(
+    await supabase.from("clubs").select("*").eq("slug", clubSlug).maybeSingle(),
+    `clubs: slug=${clubSlug}`
+  );
 
   if (!club) {
     notFound();
   }
-
-  const typedClub = club as Club;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <header className="border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-4">
-            {typedClub.logo_url && (
+            {club.logo_url && (
               <Image
-                src={typedClub.logo_url}
-                alt={`${typedClub.short_name} logo`}
+                src={club.logo_url}
+                alt={`${club.short_name} logo`}
                 width={48}
                 height={48}
                 className="rounded-lg"
@@ -41,10 +39,10 @@ export default async function ClubLayout({ children, params }: ClubLayoutProps) 
             )}
             <div>
               <Link
-                href={`/${typedClub.slug}`}
+                href={`/${club.slug}`}
                 className="text-xl font-bold text-gray-900 hover:text-blue-600 dark:text-white dark:hover:text-blue-400"
               >
-                {typedClub.full_name}
+                {club.full_name}
               </Link>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Records
