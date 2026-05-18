@@ -1,15 +1,20 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { unwrap } from "@/lib/supabase/guard";
 import type { Club } from "@/types/database";
 
 export default async function AdminPage() {
   const supabase = await createClient();
 
   // Fetch all clubs (admin can see all)
-  const { data: clubs } = await supabase
-    .from("clubs")
-    .select("*, record_lists(count)")
-    .order("created_at", { ascending: false });
+  const clubs =
+    unwrap<(Club & { record_lists: { count: number }[] })[]>(
+      await supabase
+        .from("clubs")
+        .select("*, record_lists(count)")
+        .order("created_at", { ascending: false }),
+      "admin: clubs list"
+    ) ?? [];
 
   return (
     <div>
@@ -22,9 +27,9 @@ export default async function AdminPage() {
         </p>
       </div>
 
-      {clubs && clubs.length > 0 ? (
+      {clubs.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {(clubs as (Club & { record_lists: { count: number }[] })[]).map((club) => (
+          {clubs.map((club) => (
             <div
               key={club.id}
               className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800"
