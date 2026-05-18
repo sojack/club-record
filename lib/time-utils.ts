@@ -1,6 +1,7 @@
 /**
- * Parse a time string to milliseconds
- * Handles formats: "20.91", "1:42.00", "14:30.67", "1:42:00" (malformed)
+ * Parse a time string to milliseconds.
+ * Handles "20.91", "1:42.00", "14:30.67", and malformed "1:42:00".
+ * Returns 0 for empty, whitespace, non-numeric, or partially numeric input.
  */
 export function parseTimeToMs(time: string): number {
   if (!time || time.trim() === "") {
@@ -9,22 +10,31 @@ export function parseTimeToMs(time: string): number {
 
   const cleaned = time.trim();
 
-  // Handle malformed format like "1:42:00" (should be "1:42.00")
+  // Normalize malformed "MM:SS:hh" -> "MM:SS.hh"
   const normalized = cleaned.replace(/:(\d{2})$/, ".$1");
 
   const parts = normalized.split(":");
 
+  const isUnsignedNumber = (s: string) => /^\d+(\.\d+)?$/.test(s);
+  const isUnsignedInt = (s: string) => /^\d+$/.test(s);
+
   if (parts.length === 1) {
-    // Format: SS.hh (e.g., "20.91")
+    if (!isUnsignedNumber(parts[0])) return 0;
     const seconds = parseFloat(parts[0]);
     return Math.round(seconds * 1000);
   } else if (parts.length === 2) {
-    // Format: MM:SS.hh (e.g., "1:42.00")
+    if (!isUnsignedInt(parts[0]) || !isUnsignedNumber(parts[1])) return 0;
     const minutes = parseInt(parts[0], 10);
     const seconds = parseFloat(parts[1]);
     return Math.round((minutes * 60 + seconds) * 1000);
   } else if (parts.length === 3) {
-    // Format: HH:MM:SS.hh (unlikely for swimming but handle it)
+    if (
+      !isUnsignedInt(parts[0]) ||
+      !isUnsignedInt(parts[1]) ||
+      !isUnsignedNumber(parts[2])
+    ) {
+      return 0;
+    }
     const hours = parseInt(parts[0], 10);
     const minutes = parseInt(parts[1], 10);
     const seconds = parseFloat(parts[2]);
