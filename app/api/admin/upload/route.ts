@@ -2,38 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { scopeForClubLevel } from "@/lib/scope";
-
-interface RecordData {
-  event_name: string;
-  time_ms: number;
-  swimmer_name: string;
-  swimmer_name_2: string | null;
-  swimmer_name_3: string | null;
-  swimmer_name_4: string | null;
-  age_group: string | null;
-  record_club: string | null;
-  province: string | null;
-  record_date: string | null;
-  location: string | null;
-  sort_order: number;
-  is_national: boolean;
-  is_current_national: boolean;
-  is_provincial: boolean;
-  is_current_provincial: boolean;
-  is_split: boolean;
-  is_relay_split: boolean;
-  is_new: boolean;
-}
-
-interface UploadRequest {
-  clubId: string;
-  title: string;
-  slug: string;
-  courseType: "LCM" | "SCM" | "SCY";
-  gender: "male" | "female" | "mixed" | null;
-  recordType: "individual" | "relay";
-  records: RecordData[];
-}
+import { parseJsonBody } from "@/lib/validation/parse";
+import { uploadSchema } from "./schema";
 
 export async function POST(request: NextRequest) {
   // Verify user is admin
@@ -51,13 +21,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Parse request body
-  const body: UploadRequest = await request.json();
-  const { clubId, title, slug, courseType, gender, recordType, records } = body;
-
-  if (!clubId || !title || !slug || !records) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-  }
+  // Parse + validate request body
+  const parsed = await parseJsonBody(request, uploadSchema);
+  if (!parsed.ok) return parsed.response;
+  const { clubId, title, slug, courseType, gender, recordType, records } =
+    parsed.data;
 
   // Use admin client to bypass RLS
   const adminClient = createAdminClient();
