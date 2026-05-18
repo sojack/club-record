@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-
-interface ClubLevelRequest {
-  clubId: string;
-  level: "regular" | "provincial" | "national";
-  province: string | null;
-}
+import { parseJsonBody } from "@/lib/validation/parse";
+import { clubLevelSchema } from "./schema";
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -21,12 +17,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const body: ClubLevelRequest = await request.json();
-  const { clubId, level, province } = body;
-
-  if (!clubId || !["regular", "provincial", "national"].includes(level)) {
-    return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 });
-  }
+  const parsed = await parseJsonBody(request, clubLevelSchema);
+  if (!parsed.ok) return parsed.response;
+  const { clubId, level, province } = parsed.data;
 
   const adminClient = createAdminClient();
   const { error } = await adminClient
