@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { unwrap, dbErrorToResponse, DataAccessError } from "@/lib/supabase/guard";
 import { formatMsToTime } from "@/lib/time-utils";
 import type { Club, RecordList, SwimRecord } from "@/types/database";
 
@@ -40,97 +41,101 @@ export async function GET(
 ) {
   const { slug } = await params;
   const listSlug = request.nextUrl.searchParams.get("list");
-  const supabase = await createClient();
 
-  const { data: club } = await supabase
-    .from("clubs")
-    .select("*")
-    .eq("slug", slug)
-    .single();
+  try {
+    const supabase = await createClient();
 
-  if (!club) {
-    return NextResponse.json(
-      { error: "Club not found" },
-      { status: 404, headers: corsHeaders }
+    const club = unwrap<Club>(
+      await supabase.from("clubs").select("*").eq("slug", slug).maybeSingle(),
+      `clubs: slug=${slug}`
     );
-  }
 
-  const typedClub = club as Club;
-
-  // Find the requested list, or default to the first one
-  const { data: recordList } = listSlug
-    ? await supabase
-        .from("record_lists")
-        .select("*")
-        .eq("club_id", typedClub.id)
-        .eq("slug", listSlug)
-        .single()
-    : await supabase
-        .from("record_lists")
-        .select("*")
-        .eq("club_id", typedClub.id)
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .single();
-
-  if (!recordList) {
-    return NextResponse.json(
-      { error: "Record list not found" },
-      { status: 404, headers: corsHeaders }
-    );
-  }
-
-  const typedList = recordList as RecordList;
-
-  const { data: records } = await supabase
-    .from("records")
-    .select("*")
-    .eq("record_list_id", typedList.id)
-    .order("sort_order", { ascending: true });
-
-  const typedRecords = (records || []) as SwimRecord[];
-
-  // Separate current and history records
-  const currentRecords = typedRecords.filter((r) => r.is_current !== false);
-  const historyRecords = typedRecords.filter((r) => r.is_current === false);
-
-  // Build history map keyed by the current record's ID
-  const historyByRecordId = new Map<string, SwimRecord[]>();
-  for (const hr of historyRecords) {
-    if (hr.superseded_by) {
-      const existing = historyByRecordId.get(hr.superseded_by) || [];
-      existing.push(hr);
-      historyByRecordId.set(hr.superseded_by, existing);
+    if (!club) {
+      return NextResponse.json(
+        { error: "Club not found" },
+        { status: 404, headers: corsHeaders }
+      );
     }
-  }
 
-  // Sort history by date descending
-  historyByRecordId.forEach((recs) => {
-    recs.sort((a, b) => {
-      if (!a.record_date && !b.record_date) return 0;
-      if (!a.record_date) return 1;
-      if (!b.record_date) return -1;
-      return b.record_date.localeCompare(a.record_date);
+    const recordList = unwrap<RecordList>(
+      listSlug
+        ? await supabase
+            .from("record_lists")
+            .select("*")
+            .eq("club_id", club.id)
+            .eq("slug", listSlug)
+            .maybeSingle()
+        : await supabase
+            .from("record_lists")
+            .select("*")
+            .eq("club_id", club.id)
+            .order("created_at", { ascending: true })
+            .limit(1)
+            .maybeSingle(),
+      `record_lists: club_id=${club.id} list=${listSlug ?? "(default)"}`
+    );
+
+    if (!recordList) {
+      return NextResponse.json(
+        { error: "Record list not found" },
+        { status: 404, headers: corsHeaders }
+      );
+    }
+
+    const records =
+      unwrap<SwimRecord[]>(
+        await supabase
+          .from("records")
+          .select("*")
+          .eq("record_list_id", recordList.id)
+          .order("sort_order", { ascending: true }),
+        `records: record_list_id=${recordList.id}`
+      ) ?? [];
+
+    const currentRecords = records.filter((r) => r.is_current !== false);
+    const historyRecords = records.filter((r) => r.is_current === false);
+
+    const historyByRecordId = new Map<string, SwimRecord[]>();
+    for (const hr of historyRecords) {
+      if (hr.superseded_by) {
+        const existing = historyByRecordId.get(hr.superseded_by) || [];
+        existing.push(hr);
+        historyByRecordId.set(hr.superseded_by, existing);
+      }
+    }
+
+    historyByRecordId.forEach((recs) => {
+      recs.sort((a, b) => {
+        if (!a.record_date && !b.record_date) return 0;
+        if (!a.record_date) return 1;
+        if (!b.record_date) return -1;
+        return b.record_date.localeCompare(a.record_date);
+      });
     });
-  });
 
-  const responseRecords = currentRecords.map((r) => ({
-    ...formatRecord(r),
-    history: (historyByRecordId.get(r.id) || []).map(formatRecord),
-  }));
+    const responseRecords = currentRecords.map((r) => ({
+      ...formatRecord(r),
+      history: (historyByRecordId.get(r.id) || []).map(formatRecord),
+    }));
 
-  return NextResponse.json(
-    {
-      club_slug: typedClub.slug,
-      club_name: typedClub.short_name,
-      list: {
-        slug: typedList.slug,
-        title: typedList.title,
-        course_type: typedList.course_type,
-        gender: typedList.gender,
+    return NextResponse.json(
+      {
+        club_slug: club.slug,
+        club_name: club.short_name,
+        list: {
+          slug: recordList.slug,
+          title: recordList.title,
+          course_type: recordList.course_type,
+          gender: recordList.gender,
+        },
+        records: responseRecords,
       },
-      records: responseRecords,
-    },
-    { headers: corsHeaders }
-  );
+      { headers: corsHeaders }
+    );
+  } catch (err) {
+    if (!(err instanceof DataAccessError)) {
+      console.error("[route] clubs/[slug]/records: unexpected error", err);
+    }
+    return dbErrorToResponse(corsHeaders);
+  }
 }
