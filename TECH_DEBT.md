@@ -11,15 +11,24 @@ why it matters, and a checkbox. Spec for the first batch of work:
   the pre-existing lint debt below is cleared.
 - [x] **No tests for `lib/time-utils.ts` / `lib/csv-parser.ts`** — Vitest
   foundation added; bugs B1, B2, B3, B3b fixed via TDD.
+- [x] **Swallowed Supabase errors (public path)** — added `lib/supabase/guard.ts`
+  (`unwrap` / `DataAccessError` / `dbErrorToResponse`). Public API routes
+  (`api/clubs/[slug]`, `api/clubs/[slug]/records`) now return 500 on a real DB
+  error and 404 only when genuinely missing; public pages/layout/embed throw
+  to new `app/error.tsx` / `app/[clubSlug]/error.tsx` boundaries;
+  `ClubRecordBrowser` shows an inline retry instead of a false-empty table.
+  Reusable guard pattern for the remaining dashboard/admin work.
 
 ## High
 
 - [ ] **No automated tests beyond `time-utils` / `csv-parser`** — the rest of
   the app (components, pages, API routes, auth) has zero coverage; regressions
   ship silently.
-- [ ] **Swallowed Supabase errors in `app/api/clubs/[slug]/records/route.ts`**
-  — query `.error` is never checked, so a DB failure returns 404/empty instead
-  of 5xx, masking outages and corrupting the public view.
+- [ ] **Near-absent error handling — dashboard/admin/auth (remaining)** — the
+  public read path is now hardened via `lib/supabase/guard.ts` (see Done).
+  The remaining ~30 unchecked Supabase calls in dashboard/admin/layout/auth
+  still swallow errors; apply the same `unwrap` guard pattern there
+  (tech-debt sub-project C).
 - [ ] **Near-absent error handling** — only ~2 files use `try/catch`; most
   Supabase calls outside admin routes don't check `error`.
 - [ ] **No input validation at trust boundaries** — CSV import and API routes
@@ -74,3 +83,11 @@ why it matters, and a checkbox. Spec for the first batch of work:
   → `""`); the malformed-form normalization regex is broad and can collapse a
   4-part garbage input ending in 2 digits (`"1:02:03:04"` → parsed). Low
   real-world risk for swim times; revisit if stricter validation is needed.
+- [ ] **Public error UI polish** — `app/error.tsx` and
+  `app/[clubSlug]/error.tsx` are near-identical; if a third boundary or a
+  shared change appears, extract a small `ErrorBoundaryUI` component. Also
+  consider a "Go Home" escape link and `useEffect` client-side logging once
+  observability is addressed.
+- [ ] **`ClubRecordBrowser.handleListChange` unguarded async** — rapid list
+  switching can race (last-resolved fetch wins, not last-selected).
+  Pre-existing; add an `AbortController`/request-id guard when revisiting.
