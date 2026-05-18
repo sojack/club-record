@@ -18,6 +18,13 @@ why it matters, and a checkbox. Spec for the first batch of work:
   to new `app/error.tsx` / `app/[clubSlug]/error.tsx` boundaries;
   `ClubRecordBrowser` shows an inline retry instead of a false-empty table.
   Reusable guard pattern for the remaining dashboard/admin work.
+- [x] **No input validation at trust boundaries (admin APIs)** — added
+  `lib/validation/parse.ts` (`parseJsonBody`) + co-located zod schemas;
+  `api/admin/upload` (incl. the nested `records[]` array) and
+  `api/admin/club-level` now reject malformed JSON / bad shapes with a
+  structured **400** (was an uncaught 500 or a corrupt service-role insert).
+  Auth (401/403) still precedes validation. The 3 hand-rolled `interface`s
+  were replaced by `z.infer` types.
 
 ## High
 
@@ -31,9 +38,6 @@ why it matters, and a checkbox. Spec for the first batch of work:
   (tech-debt sub-project C).
 - [ ] **Near-absent error handling** — only ~2 files use `try/catch`; most
   Supabase calls outside admin routes don't check `error`.
-- [ ] **No input validation at trust boundaries** — CSV import and API routes
-  accept untrusted input with hand-rolled checks; no schema validation
-  (e.g. `zod`).
 
 ## Medium
 
@@ -91,3 +95,9 @@ why it matters, and a checkbox. Spec for the first batch of work:
 - [ ] **`ClubRecordBrowser.handleListChange` unguarded async** — rapid list
   switching can race (last-resolved fetch wins, not last-selected).
   Pre-existing; add an `AbortController`/request-id guard when revisiting.
+- [ ] **Duplicated `makeChain` supabase test mock** — the same ~12-line
+  chainable Supabase mock is copy-pasted across 4 route test files
+  (`app/api/clubs/[slug]/route.test.ts`, `.../records/route.test.ts`,
+  `app/api/admin/club-level/route.test.ts`, `app/api/admin/upload/route.test.ts`).
+  Extract to a shared `lib/test/supabase-mock.ts` when next touching these
+  (rule-of-three exceeded).
