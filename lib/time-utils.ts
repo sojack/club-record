@@ -35,29 +35,29 @@ export function parseTimeToMs(time: string): number {
 }
 
 /**
- * Format milliseconds to time string
- * Returns: SS.hh for times under 1 minute, MM:SS.hh otherwise
+ * Format milliseconds to time string.
+ * Returns SS.hh for times under 1 minute, M:SS.hh otherwise.
+ * Rounds once at the hundredths place; overflow carries into seconds/minutes.
  */
 export function formatMsToTime(ms: number): string {
-  if (ms <= 0) {
+  if (!Number.isFinite(ms) || ms <= 0) {
     return "";
   }
 
-  const totalSeconds = ms / 1000;
+  const totalHundredths = Math.round(ms / 10);
+  const totalSeconds = Math.floor(totalHundredths / 100);
+  const hundredths = totalHundredths % 100;
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
 
+  const hh = hundredths.toString().padStart(2, "0");
+
   if (minutes === 0) {
-    // Format: SS.hh
-    return seconds.toFixed(2);
-  } else {
-    // Format: MM:SS.hh or M:SS.hh
-    const wholeSeconds = Math.floor(seconds);
-    const hundredths = Math.round((seconds - wholeSeconds) * 100);
-    const paddedSeconds = wholeSeconds.toString().padStart(2, "0");
-    const paddedHundredths = hundredths.toString().padStart(2, "0");
-    return `${minutes}:${paddedSeconds}.${paddedHundredths}`;
+    return `${seconds}.${hh}`;
   }
+
+  const ss = seconds.toString().padStart(2, "0");
+  return `${minutes}:${ss}.${hh}`;
 }
 
 /**
