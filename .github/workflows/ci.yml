@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: npm
+      - run: npm ci
+      # Lint is non-blocking: the codebase has pre-existing react-hooks
+      # errors tracked in TECH_DEBT.md. Visible in the logs but does not
+      # fail CI. Promote to a hard gate once the lint debt is paid.
+      - name: Lint (non-blocking)
+        run: npm run lint
+        continue-on-error: true
+      - run: npx tsc --noEmit
+      - run: npm test
