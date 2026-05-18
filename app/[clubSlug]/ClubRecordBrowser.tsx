@@ -34,6 +34,7 @@ export default function ClubRecordBrowser({
   const [selectedListId, setSelectedListId] = useState(defaultListId);
   const [records, setRecords] = useState<SwimRecord[]>(defaultRecords);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   const selectedList = recordLists.find((l) => l.id === selectedListId);
 
@@ -74,17 +75,26 @@ export default function ClubRecordBrowser({
     }
 
     if (listId === defaultListId) {
+      setLoadError(false);
       setRecords(defaultRecords);
       return;
     }
 
     setLoading(true);
+    setLoadError(false);
     const supabase = createClient();
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("records")
       .select("*")
       .eq("record_list_id", listId)
       .order("sort_order", { ascending: true });
+
+    if (error) {
+      console.error(`[data-access] records: record_list_id=${listId}`, error);
+      setLoadError(true);
+      setLoading(false);
+      return;
+    }
 
     setRecords((data as SwimRecord[]) || []);
     setLoading(false);
@@ -128,7 +138,19 @@ export default function ClubRecordBrowser({
         </div>
       )}
 
-      {loading ? (
+      {loadError ? (
+        <div className="rounded-xl bg-white p-12 text-center shadow-sm dark:bg-gray-800">
+          <p className="mb-4 text-gray-500 dark:text-gray-400">
+            Couldn&apos;t load that list. Please try again.
+          </p>
+          <button
+            onClick={() => handleListChange(selectedListId)}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
+      ) : loading ? (
         <div className="rounded-xl bg-white p-12 text-center shadow-sm dark:bg-gray-800">
           <p className="text-gray-500 dark:text-gray-400">
             Loading records...
