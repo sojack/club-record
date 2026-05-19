@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { scopeForClubLevel } from "@/lib/scope";
+import type { Club } from "@/types/database";
 import { parseJsonBody } from "@/lib/validation/parse";
+import {
+  unwrap,
+  DataAccessError,
+  dbErrorToResponse,
+} from "@/lib/supabase/guard";
 import { uploadSchema } from "./schema";
 
 export async function POST(request: NextRequest) {
@@ -27,74 +33,88 @@ export async function POST(request: NextRequest) {
   const { clubId, title, slug, courseType, gender, recordType, records } =
     parsed.data;
 
-  // Use admin client to bypass RLS
-  const adminClient = createAdminClient();
+  try {
+    // Use admin client to bypass RLS
+    const adminClient = createAdminClient();
 
-  // Derive scope from club's level
-  const { data: clubRow } = await adminClient
-    .from("clubs")
-    .select("level")
-    .eq("id", clubId)
-    .single();
-  const listScope = scopeForClubLevel(
-    (clubRow?.level ?? "regular") as "regular" | "provincial" | "national"
-  );
-
-  // Create record list
-  const { data: listData, error: listError } = await adminClient
-    .from("record_lists")
-    .insert({
-      club_id: clubId,
-      title,
-      slug,
-      course_type: courseType,
-      gender: gender ?? null,
-      record_type: recordType ?? "individual",
-      scope: listScope,
-    })
-    .select()
-    .single();
-
-  if (listError) {
-    return NextResponse.json({ error: listError.message }, { status: 400 });
-  }
-
-  // Insert records
-  const { error: recordsError } = await adminClient.from("records").insert(
-    records.map((r, idx) => ({
-      record_list_id: listData.id,
-      event_name: r.event_name,
-      time_ms: r.time_ms,
-      swimmer_name: r.swimmer_name,
-      swimmer_name_2: r.swimmer_name_2,
-      swimmer_name_3: r.swimmer_name_3,
-      swimmer_name_4: r.swimmer_name_4,
-      age_group: r.age_group,
-      record_club: r.record_club,
-      province: r.province,
-      record_date: r.record_date,
-      location: r.location,
-      sort_order: idx,
-      is_national: r.is_national,
-      is_current_national: r.is_current_national,
-      is_provincial: r.is_provincial,
-      is_current_provincial: r.is_current_provincial,
-      is_split: r.is_split,
-      is_relay_split: r.is_relay_split,
-      is_new: r.is_new,
-    }))
-  );
-
-  if (recordsError) {
-    return NextResponse.json(
-      { error: `Records failed: ${recordsError.message}` },
-      { status: 400 }
+    // Derive scope from club's level
+    const clubRow = unwrap<Pick<Club, "level">>(
+      await adminClient
+        .from("clubs")
+        .select("level")
+        .eq("id", clubId)
+        .maybeSingle(),
+      `admin/upload: club level id=${clubId}`
     );
-  }
+    if (!clubRow) {
+      return NextResponse.json(
+        { error: "Club not found" },
+        { status: 400 }
+      );
+    }
+    const listScope = scopeForClubLevel(clubRow.level);
 
-  return NextResponse.json({
-    success: true,
-    listId: listData.id,
-    recordCount: records.length,
-  });
+    // Create record list
+    const { data: listData, error: listError } = await adminClient
+      .from("record_lists")
+      .insert({
+        club_id: clubId,
+        title,
+        slug,
+        course_type: courseType,
+        gender: gender ?? null,
+        record_type: recordType ?? "individual",
+        scope: listScope,
+      })
+      .select()
+      .single();
+
+    if (listError) {
+      return NextResponse.json({ error: listError.message }, { status: 400 });
+    }
+
+    // Insert records
+    const { error: recordsError } = await adminClient.from("records").insert(
+      records.map((r, idx) => ({
+        record_list_id: listData.id,
+        event_name: r.event_name,
+        time_ms: r.time_ms,
+        swimmer_name: r.swimmer_name,
+        swimmer_name_2: r.swimmer_name_2,
+        swimmer_name_3: r.swimmer_name_3,
+        swimmer_name_4: r.swimmer_name_4,
+        age_group: r.age_group,
+        record_club: r.record_club,
+        province: r.province,
+        record_date: r.record_date,
+        location: r.location,
+        sort_order: idx,
+        is_national: r.is_national,
+        is_current_national: r.is_current_national,
+        is_provincial: r.is_provincial,
+        is_current_provincial: r.is_current_provincial,
+        is_split: r.is_split,
+        is_relay_split: r.is_relay_split,
+        is_new: r.is_new,
+      }))
+    );
+
+    if (recordsError) {
+      return NextResponse.json(
+        { error: `Records failed: ${recordsError.message}` },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      listId: listData.id,
+      recordCount: records.length,
+    });
+  } catch (err) {
+    if (!(err instanceof DataAccessError)) {
+      console.error("[route] admin/upload: unexpected error", err);
+    }
+    return dbErrorToResponse({});
+  }
 }

@@ -134,4 +134,27 @@ describe("POST /api/admin/upload", () => {
       recordCount: 1,
     });
   });
+
+  it("500 when the club-level lookup hits a DB error", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    setup({
+      user: { email: "admin@test.com" },
+      byTable: {
+        clubs: { data: null, error: { message: "boom", code: "XX000" } },
+      },
+    });
+    const res = await call(validBody);
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: "Internal server error" });
+  });
+
+  it("400 'Club not found' when the clubId does not exist", async () => {
+    setup({
+      user: { email: "admin@test.com" },
+      byTable: { clubs: { data: null, error: null } },
+    });
+    const res = await call(validBody);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "Club not found" });
+  });
 });
