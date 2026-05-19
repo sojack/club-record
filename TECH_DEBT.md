@@ -31,11 +31,13 @@ why it matters, and a checkbox. Spec for the first batch of work:
 - [ ] **No automated tests beyond `time-utils` / `csv-parser`** — the rest of
   the app (components, pages, API routes, auth) has zero coverage; regressions
   ship silently.
-- [ ] **Near-absent error handling — dashboard/admin/auth (remaining)** — the
-  public read path is now hardened via `lib/supabase/guard.ts` (see Done).
-  The remaining ~30 unchecked Supabase calls in dashboard/admin/layout/auth
-  still swallow errors; apply the same `unwrap` guard pattern there
-  (tech-debt sub-project C).
+- [ ] **Near-absent error handling — dashboard client + auth (remaining)** —
+  the public path (A) and the admin/dashboard **server** reads (C1: `unwrap`
+  in `app/admin/page.tsx`, `app/(dashboard)/layout.tsx`, the `clubRow` lookup
+  in `app/api/admin/upload/route.ts`; new `app/admin/error.tsx`) are now
+  hardened. Remaining: the ~6 dashboard **client** components — inline
+  error-state + retry (sub-project C2); and the auth flows
+  (signup/reset-password) (sub-project C3).
 - [ ] **Near-absent error handling** — only ~2 files use `try/catch`; most
   Supabase calls outside admin routes don't check `error`.
 
