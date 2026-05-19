@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { unwrap } from "@/lib/supabase/guard";
 import type { ClubWithMembership, Club, ClubMemberRole } from "@/types/database";
 import DashboardShell from "@/components/DashboardShell";
 
@@ -26,8 +27,16 @@ export default async function DashboardLayout({
   if (isAdmin) {
     const adminClient = createAdminClient();
 
-    // Fetch all clubs
-    const { data: allClubs } = await adminClient.from("clubs").select("id");
+    // Fetch all clubs (best-effort admin bootstrap — non-fatal)
+    const { data: allClubs, error: allClubsError } = await adminClient
+      .from("clubs")
+      .select("id");
+    if (allClubsError) {
+      console.error(
+        "[data-access] dashboard(admin): all clubs",
+        allClubsError
+      );
+    }
 
     if (allClubs && allClubs.length > 0) {
       // Upsert owner membership for admin in all clubs
@@ -37,21 +46,31 @@ export default async function DashboardLayout({
         role: "owner" as ClubMemberRole,
       }));
 
-      await adminClient
+      const { error: upsertError } = await adminClient
         .from("club_members")
         .upsert(membershipsToUpsert, { onConflict: "club_id,user_id" });
+      if (upsertError) {
+        console.error(
+          "[data-access] dashboard(admin): upsert memberships",
+          upsertError
+        );
+      }
     }
   }
 
   // Query clubs through club_members to get role info
-  const { data: memberships } = await supabase
-    .from("club_members")
-    .select("role, clubs(*)")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: true });
+  const memberships =
+    unwrap<{ role: string; clubs: unknown }[]>(
+      await supabase
+        .from("club_members")
+        .select("role, clubs(*)")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true }),
+      "dashboard: memberships"
+    ) ?? [];
 
   // Transform to ClubWithMembership[]
-  const clubs: ClubWithMembership[] = (memberships || [])
+  const clubs: ClubWithMembership[] = memberships
     .filter((m) => m.clubs) // Filter out any null clubs
     .map((m) => {
       const club = m.clubs as unknown as Club;
