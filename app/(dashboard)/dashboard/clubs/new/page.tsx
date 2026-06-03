@@ -31,39 +31,42 @@ export default function NewClubPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    try {
+      const supabase = createClient();
 
-    const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      setError("You must be logged in to create a club");
-      setLoading(false);
-      return;
-    }
-
-    const { error: insertError } = await supabase.from("clubs").insert({
-      user_id: user.id,
-      short_name: shortName,
-      full_name: fullName,
-      slug: slug || generateSlug(shortName),
-    });
-
-    if (insertError) {
-      if (insertError.code === "23505") {
-        setError("A club with this URL slug already exists. Please choose a different one.");
-      } else {
-        setError(insertError.message);
+      if (!user) {
+        setError("You must be logged in to create a club");
+        return;
       }
-      setLoading(false);
-      return;
-    }
 
-    // Refresh to update the clubs list in context
-    router.push("/dashboard");
-    router.refresh();
+      const { error: insertError } = await supabase.from("clubs").insert({
+        user_id: user.id,
+        short_name: shortName,
+        full_name: fullName,
+        slug: slug || generateSlug(shortName),
+      });
+
+      if (insertError) {
+        if (insertError.code === "23505") {
+          setError("A club with this URL slug already exists. Please choose a different one.");
+        } else {
+          setError(insertError.message);
+        }
+        return;
+      }
+
+      router.push("/dashboard");
+      router.refresh();
+    } catch (err) {
+      console.error("[mutation] dashboard: create club", err);
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

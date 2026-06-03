@@ -29,25 +29,29 @@ export default function SettingsPage() {
 
     setSaving(true);
     setMessage(null);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("clubs")
+        .update({
+          short_name: shortName,
+          full_name: fullName,
+          logo_url: logoUrl || null,
+        })
+        .eq("id", selectedClub.id);
 
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("clubs")
-      .update({
-        short_name: shortName,
-        full_name: fullName,
-        logo_url: logoUrl || null,
-      })
-      .eq("id", selectedClub.id);
-
-    if (error) {
-      setMessage({ type: "error", text: error.message });
-    } else {
-      setMessage({ type: "success", text: "Settings saved successfully!" });
-      router.refresh();
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+      } else {
+        setMessage({ type: "success", text: "Settings saved successfully!" });
+        router.refresh();
+      }
+    } catch (err) {
+      console.error("[mutation] dashboard: save settings", err);
+      setMessage({ type: "error", text: "Something went wrong. Please try again." });
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
   };
 
   if (clubLoading) {

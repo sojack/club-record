@@ -38,33 +38,38 @@ export default function NewRecordListPage() {
 
     setError(null);
     setLoading(true);
+    try {
+      const supabase = createClient();
+      const { data, error: insertError } = await supabase
+        .from("record_lists")
+        .insert({
+          club_id: selectedClub.id,
+          title,
+          slug,
+          course_type: courseType,
+          gender,
+          record_type: recordType,
+          scope: scopeForClubLevel(selectedClub?.level),
+        })
+        .select()
+        .single();
 
-    const supabase = createClient();
-    const { data, error: insertError } = await supabase
-      .from("record_lists")
-      .insert({
-        club_id: selectedClub.id,
-        title,
-        slug,
-        course_type: courseType,
-        gender,
-        record_type: recordType,
-        scope: scopeForClubLevel(selectedClub?.level),
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      if (insertError.code === "23505") {
-        setError("A record list with this slug already exists. Please choose a different URL.");
-      } else {
-        setError(insertError.message);
+      if (insertError) {
+        if (insertError.code === "23505") {
+          setError("A record list with this slug already exists. Please choose a different URL.");
+        } else {
+          setError(insertError.message);
+        }
+        return;
       }
-      setLoading(false);
-      return;
-    }
 
-    router.push(`/dashboard/records/${data.id}`);
+      router.push(`/dashboard/records/${data.id}`);
+    } catch (err) {
+      console.error("[mutation] dashboard: create record list", err);
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (clubLoading) {
