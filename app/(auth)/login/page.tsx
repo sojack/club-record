@@ -16,22 +16,27 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    try {
+      const supabase = createClient();
 
-    const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+      if (error) {
+        setError(error.message);
+        return;
+      }
 
-    if (error) {
-      setError(error.message);
+      router.push("/dashboard");
+      router.refresh();
+    } catch (err) {
+      console.error("[mutation] auth: login", err);
+      setError("Something went wrong. Please try again.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    router.push("/dashboard");
-    router.refresh();
   };
 
   return (
