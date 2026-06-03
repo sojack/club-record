@@ -5,11 +5,13 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useClub } from "@/contexts/ClubContext";
 import type { RecordList } from "@/types/database";
+import LoadError from "@/components/LoadError";
 
 export default function DashboardPage() {
   const { selectedClub, isLoading: clubLoading } = useClub();
   const [recordLists, setRecordLists] = useState<(RecordList & { records: { count: number }[] })[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     if (selectedClub) {
@@ -23,16 +25,24 @@ export default function DashboardPage() {
     if (!selectedClub) return;
 
     setLoading(true);
-    const supabase = createClient();
-
-    const { data } = await supabase
-      .from("record_lists")
-      .select("*, records(count)")
-      .eq("club_id", selectedClub.id)
-      .order("created_at", { ascending: false });
-
-    setRecordLists((data as (RecordList & { records: { count: number }[] })[]) || []);
-    setLoading(false);
+    setLoadError(false);
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("record_lists")
+        .select("*, records(count)")
+        .eq("club_id", selectedClub.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      setRecordLists(
+        (data as (RecordList & { records: { count: number }[] })[]) || []
+      );
+    } catch (e) {
+      console.error("[data-access] dashboard: record lists", e);
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const totalRecords = recordLists.reduce(
@@ -46,6 +56,10 @@ export default function DashboardPage() {
         <div className="text-gray-500 dark:text-gray-400">Loading...</div>
       </div>
     );
+  }
+
+  if (loadError) {
+    return <LoadError onRetry={loadRecordLists} />;
   }
 
   if (!selectedClub) {
