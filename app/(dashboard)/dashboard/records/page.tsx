@@ -8,6 +8,7 @@ import { formatMsToTime } from "@/lib/time-utils";
 import type { RecordList, SwimRecord } from "@/types/database";
 import { maxIso } from "@/lib/date-utils";
 import LastUpdated from "@/components/LastUpdated";
+import LoadError from "@/components/LoadError";
 
 type RecordListRow = RecordList & {
   records: { count: number }[];
@@ -18,6 +19,7 @@ export default function RecordListsPage() {
   const { selectedClub, isLoading: clubLoading, canEdit } = useClub();
   const [recordLists, setRecordLists] = useState<RecordListRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -37,49 +39,57 @@ export default function RecordListsPage() {
     if (!selectedClub) return;
 
     setLoading(true);
-    const supabase = createClient();
+    setLoadError(false);
+    try {
+      const supabase = createClient();
 
-    const { data } = await supabase
-      .from("record_lists")
-      .select("*, records(count)")
-      .eq("club_id", selectedClub.id)
-      .order("title", { ascending: true });
+      const { data, error } = await supabase
+        .from("record_lists")
+        .select("*, records(count)")
+        .eq("club_id", selectedClub.id)
+        .order("title", { ascending: true });
+      if (error) throw error;
 
-    const lists = (data as (RecordList & { records: { count: number }[] })[]) || [];
+      const lists = (data as (RecordList & { records: { count: number }[] })[]) || [];
 
-    // Content-freshness: latest of each list's own updated_at and the newest
-    // updated_at among its records. One bounded extra query over the same
-    // list IDs the CSV export already fetches in full — strictly lighter.
-    // If the column/migration is absent this query errors and recRows is
-    // undefined; we degrade to list.updated_at (also possibly absent → null).
-    const listIds = lists.map((l) => l.id);
-    const recordMax = new Map<string, string>();
-    if (listIds.length > 0) {
-      const { data: recRows } = await supabase
-        .from("records")
-        .select("record_list_id, updated_at")
-        .in("record_list_id", listIds);
-      for (const row of (recRows as
-        | { record_list_id: string; updated_at: string }[]
-        | null) || []) {
-        const prev = recordMax.get(row.record_list_id);
-        if (
-          !prev ||
-          new Date(row.updated_at).getTime() > new Date(prev).getTime()
-        ) {
-          recordMax.set(row.record_list_id, row.updated_at);
+      // Content-freshness: latest of each list's own updated_at and the newest
+      // updated_at among its records. One bounded extra query over the same
+      // list IDs the CSV export already fetches in full — strictly lighter.
+      // If the column/migration is absent this query errors and recRows is
+      // undefined; we degrade to list.updated_at (also possibly absent → null).
+      const listIds = lists.map((l) => l.id);
+      const recordMax = new Map<string, string>();
+      if (listIds.length > 0) {
+        const { data: recRows } = await supabase
+          .from("records")
+          .select("record_list_id, updated_at")
+          .in("record_list_id", listIds);
+        for (const row of (recRows as
+          | { record_list_id: string; updated_at: string }[]
+          | null) || []) {
+          const prev = recordMax.get(row.record_list_id);
+          if (
+            !prev ||
+            new Date(row.updated_at).getTime() > new Date(prev).getTime()
+          ) {
+            recordMax.set(row.record_list_id, row.updated_at);
+          }
         }
       }
+
+      const rows: RecordListRow[] = lists.map((l) => ({
+        ...l,
+        lastUpdated: maxIso([l.updated_at, recordMax.get(l.id)]),
+      }));
+
+      setRecordLists(rows);
+      setSelectedIds([]);
+    } catch (e) {
+      console.error("[data-access] dashboard: record lists index", e);
+      setLoadError(true);
+    } finally {
+      setLoading(false);
     }
-
-    const rows: RecordListRow[] = lists.map((l) => ({
-      ...l,
-      lastUpdated: maxIso([l.updated_at, recordMax.get(l.id)]),
-    }));
-
-    setRecordLists(rows);
-    setLoading(false);
-    setSelectedIds([]);
   };
 
   const toggleSelection = (id: string) => {
@@ -111,27 +121,36 @@ export default function RecordListsPage() {
     const success: string[] = [];
     const failed: string[] = [];
 
-    for (let i = 0; i < selectedIds.length; i++) {
-      const id = selectedIds[i];
-      const list = recordLists.find((l) => l.id === id);
-      setDeleteProgress({ current: i + 1, total: selectedIds.length });
+    try {
+      for (let i = 0; i < selectedIds.length; i++) {
+        const id = selectedIds[i];
+        const list = recordLists.find((l) => l.id === id);
+        setDeleteProgress({ current: i + 1, total: selectedIds.length });
 
-      const { error } = await supabase.from("record_lists").delete().eq("id", id);
+        const { error } = await supabase.from("record_lists").delete().eq("id", id);
 
-      if (error) {
-        failed.push(`${list?.title || id}: ${error.message}`);
-      } else {
-        success.push(list?.title || id);
+        if (error) {
+          failed.push(`${list?.title || id}: ${error.message}`);
+        } else {
+          success.push(list?.title || id);
+        }
       }
-    }
 
-    setDeleteResults({ success, failed });
-    setIsDeleting(false);
+      setDeleteResults({ success, failed });
 
-    if (failed.length === 0) {
-      setShowDeleteModal(false);
-      setSelectedIds([]);
-      loadRecordLists();
+      if (failed.length === 0) {
+        setShowDeleteModal(false);
+        setSelectedIds([]);
+        loadRecordLists();
+      }
+    } catch (e) {
+      console.error("[mutation] dashboard: bulk delete", e);
+      setDeleteResults({
+        success,
+        failed: [...failed, "Something went wrong. Please try again."],
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -140,76 +159,79 @@ export default function RecordListsPage() {
 
     setIsExporting(true);
 
-    const supabase = createClient();
+    try {
+      const supabase = createClient();
 
-    // Fetch all record lists with their records
-    const { data: lists } = await supabase
-      .from("record_lists")
-      .select("id, title")
-      .eq("club_id", selectedClub.id)
-      .order("title");
+      // Fetch all record lists with their records
+      const { data: lists } = await supabase
+        .from("record_lists")
+        .select("id, title")
+        .eq("club_id", selectedClub.id)
+        .order("title");
 
-    if (!lists || lists.length === 0) {
-      setIsExporting(false);
-      return;
-    }
+      if (!lists || lists.length === 0) {
+        return;
+      }
 
-    // Fetch all records for these lists
-    const listIds = lists.map((l) => l.id);
-    const { data: records } = await supabase
-      .from("records")
-      .select("*")
-      .in("record_list_id", listIds)
-      .order("sort_order");
+      // Fetch all records for these lists
+      const listIds = lists.map((l) => l.id);
+      const { data: records } = await supabase
+        .from("records")
+        .select("*")
+        .in("record_list_id", listIds)
+        .order("sort_order");
 
-    if (!records) {
-      setIsExporting(false);
-      return;
-    }
+      if (!records) {
+        return;
+      }
 
-    // Create a map of list id to title
-    const listTitleMap = new Map(lists.map((l) => [l.id, l.title]));
+      // Create a map of list id to title
+      const listTitleMap = new Map(lists.map((l) => [l.id, l.title]));
 
-    // Build CSV content
-    const csvRows = [
-      ["Record List", "Event", "Time", "Swimmer", "Date", "Location", "is_World_Record", "is_National", "is_Current_National", "is_Provincial", "is_Current_Provincial", "is_Split", "is_RelaySplit", "is_New"].join(","),
-    ];
-
-    for (const record of records as SwimRecord[]) {
-      const listTitle = listTitleMap.get(record.record_list_id) || "";
-      const row = [
-        `"${listTitle.replace(/"/g, '""')}"`,
-        `"${record.event_name.replace(/"/g, '""')}"`,
-        `"${formatMsToTime(record.time_ms)}"`,
-        `"${record.swimmer_name.replace(/"/g, '""')}"`,
-        `"${record.record_date || ""}"`,
-        `"${(record.location || "").replace(/"/g, '""')}"`,
-        record.is_world_record ? "true" : "",
-        record.is_national ? "true" : "",
-        record.is_current_national ? "true" : "",
-        record.is_provincial ? "true" : "",
-        record.is_current_provincial ? "true" : "",
-        record.is_split ? "true" : "",
-        record.is_relay_split ? "true" : "",
-        record.is_new ? "true" : "",
+      // Build CSV content
+      const csvRows = [
+        ["Record List", "Event", "Time", "Swimmer", "Date", "Location", "is_World_Record", "is_National", "is_Current_National", "is_Provincial", "is_Current_Provincial", "is_Split", "is_RelaySplit", "is_New"].join(","),
       ];
-      csvRows.push(row.join(","));
+
+      for (const record of records as SwimRecord[]) {
+        const listTitle = listTitleMap.get(record.record_list_id) || "";
+        const row = [
+          `"${listTitle.replace(/"/g, '""')}"`,
+          `"${record.event_name.replace(/"/g, '""')}"`,
+          `"${formatMsToTime(record.time_ms)}"`,
+          `"${record.swimmer_name.replace(/"/g, '""')}"`,
+          `"${record.record_date || ""}"`,
+          `"${(record.location || "").replace(/"/g, '""')}"`,
+          record.is_world_record ? "true" : "",
+          record.is_national ? "true" : "",
+          record.is_current_national ? "true" : "",
+          record.is_provincial ? "true" : "",
+          record.is_current_provincial ? "true" : "",
+          record.is_split ? "true" : "",
+          record.is_relay_split ? "true" : "",
+          record.is_new ? "true" : "",
+        ];
+        csvRows.push(row.join(","));
+      }
+
+      const csvContent = csvRows.join("\n");
+
+      // Trigger download
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${selectedClub.slug}-records.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("[mutation] dashboard: export CSV", e);
+      alert("Something went wrong. Please try again.");
+    } finally {
+      setIsExporting(false);
     }
-
-    const csvContent = csvRows.join("\n");
-
-    // Trigger download
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${selectedClub.slug}-records.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    setIsExporting(false);
   };
 
   if (loading || clubLoading) {
@@ -218,6 +240,10 @@ export default function RecordListsPage() {
         <div className="text-gray-500 dark:text-gray-400">Loading...</div>
       </div>
     );
+  }
+
+  if (loadError) {
+    return <LoadError onRetry={loadRecordLists} />;
   }
 
   if (!selectedClub) {
