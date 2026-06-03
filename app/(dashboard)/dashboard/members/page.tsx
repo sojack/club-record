@@ -6,13 +6,14 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useClub } from "@/contexts/ClubContext";
 import type { ClubMemberWithEmail, ClubMemberRole } from "@/types/database";
+import LoadError from "@/components/LoadError";
 
 export default function MembersPage() {
   const router = useRouter();
   const { selectedClub, isLoading: clubLoading, isOwner } = useClub();
   const [members, setMembers] = useState<ClubMemberWithEmail[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
   // Add member form state
   const [showAddForm, setShowAddForm] = useState(false);
@@ -49,19 +50,19 @@ export default function MembersPage() {
     if (!selectedClub) return;
 
     setLoading(true);
-    setError(null);
-
-    const supabase = createClient();
-    const { data, error: fetchError } = await supabase
-      .rpc("get_club_members_with_email", { p_club_id: selectedClub.id });
-
-    if (fetchError) {
-      setError(fetchError.message);
-    } else {
+    setLoadError(false);
+    try {
+      const supabase = createClient();
+      const { data, error: fetchError } = await supabase
+        .rpc("get_club_members_with_email", { p_club_id: selectedClub.id });
+      if (fetchError) throw fetchError;
       setMembers((data as ClubMemberWithEmail[]) || []);
+    } catch (e) {
+      console.error("[data-access] dashboard: members", e);
+      setLoadError(true);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const handleAddMember = async (e: React.FormEvent) => {
@@ -70,39 +71,46 @@ export default function MembersPage() {
 
     setAddingMember(true);
     setAddError(null);
-
-    const supabase = createClient();
-    const { error: addMemberError } = await supabase
-      .rpc("add_club_member_by_email", {
-        p_club_id: selectedClub.id,
-        p_email: newEmail,
-        p_role: newRole,
-      });
-
-    if (addMemberError) {
-      setAddError(addMemberError.message);
-    } else {
+    try {
+      const supabase = createClient();
+      const { error: addMemberError } = await supabase
+        .rpc("add_club_member_by_email", {
+          p_club_id: selectedClub.id,
+          p_email: newEmail,
+          p_role: newRole,
+        });
+      if (addMemberError) {
+        setAddError(addMemberError.message);
+        return;
+      }
       setNewEmail("");
       setNewRole("viewer");
       setShowAddForm(false);
       loadMembers();
+    } catch (err) {
+      console.error("[mutation] dashboard: add member", err);
+      setAddError("Something went wrong. Please try again.");
+    } finally {
+      setAddingMember(false);
     }
-
-    setAddingMember(false);
   };
 
   const handleRoleChange = async (memberId: string, newMemberRole: ClubMemberRole) => {
-    const supabase = createClient();
-    const { error: updateError } = await supabase
-      .rpc("update_club_member_role", {
-        p_member_id: memberId,
-        p_new_role: newMemberRole,
-      });
-
-    if (updateError) {
-      alert(updateError.message);
-    } else {
+    try {
+      const supabase = createClient();
+      const { error: updateError } = await supabase
+        .rpc("update_club_member_role", {
+          p_member_id: memberId,
+          p_new_role: newMemberRole,
+        });
+      if (updateError) {
+        alert(updateError.message);
+        return;
+      }
       loadMembers();
+    } catch (e) {
+      console.error("[mutation] dashboard: role change", e);
+      alert("Something went wrong. Please try again.");
     }
   };
 
@@ -110,41 +118,47 @@ export default function MembersPage() {
     if (!removeTarget) return;
 
     setRemoving(true);
-
-    const supabase = createClient();
-    const { error: removeError } = await supabase
-      .rpc("remove_club_member", { p_member_id: removeTarget.id });
-
-    if (removeError) {
-      alert(removeError.message);
-    } else {
+    try {
+      const supabase = createClient();
+      const { error: removeError } = await supabase
+        .rpc("remove_club_member", { p_member_id: removeTarget.id });
+      if (removeError) {
+        alert(removeError.message);
+        return;
+      }
       setShowRemoveModal(false);
       setRemoveTarget(null);
       loadMembers();
+    } catch (e) {
+      console.error("[mutation] dashboard: remove member", e);
+      alert("Something went wrong. Please try again.");
+    } finally {
+      setRemoving(false);
     }
-
-    setRemoving(false);
   };
 
   const handleTransferOwnership = async () => {
     if (!transferTarget || !selectedClub) return;
 
     setTransferring(true);
-
-    const supabase = createClient();
-    const { error: transferError } = await supabase
-      .rpc("transfer_club_ownership", {
-        p_club_id: selectedClub.id,
-        p_new_owner_id: transferTarget.user_id,
-      });
-
-    if (transferError) {
-      alert(transferError.message);
-      setTransferring(false);
-    } else {
-      // Refresh the page to update context
+    try {
+      const supabase = createClient();
+      const { error: transferError } = await supabase
+        .rpc("transfer_club_ownership", {
+          p_club_id: selectedClub.id,
+          p_new_owner_id: transferTarget.user_id,
+        });
+      if (transferError) {
+        alert(transferError.message);
+        setTransferring(false);
+        return;
+      }
       router.push("/dashboard");
       router.refresh();
+    } catch (e) {
+      console.error("[mutation] dashboard: transfer ownership", e);
+      alert("Something went wrong. Please try again.");
+      setTransferring(false);
     }
   };
 
@@ -154,6 +168,10 @@ export default function MembersPage() {
         <div className="text-gray-500 dark:text-gray-400">Loading...</div>
       </div>
     );
+  }
+
+  if (loadError) {
+    return <LoadError onRetry={loadMembers} />;
   }
 
   if (!selectedClub) {
@@ -197,12 +215,6 @@ export default function MembersPage() {
           Add Member
         </button>
       </div>
-
-      {error && (
-        <div className="mb-6 rounded-lg bg-red-50 p-4 text-sm text-red-600 dark:bg-red-900/50 dark:text-red-400">
-          {error}
-        </div>
-      )}
 
       {/* Role Legend */}
       <div className="mb-6 flex flex-wrap gap-4 rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
