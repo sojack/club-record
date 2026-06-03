@@ -10,6 +10,7 @@ import LastUpdated from "@/components/LastUpdated";
 import { maxIso } from "@/lib/date-utils";
 import CSVUploader from "@/components/CSVUploader";
 import EmbedCodeSnippet from "@/components/EmbedCodeSnippet";
+import LoadError from "@/components/LoadError";
 import type { RecordList, SwimRecord } from "@/types/database";
 import type { CSVRecord } from "@/lib/csv-parser";
 import type { HistoryFlagUpdate } from "@/components/RecordTable";
@@ -23,6 +24,7 @@ export default function RecordListDetailPage() {
   const [recordList, setRecordList] = useState<RecordList | null>(null);
   const [records, setRecords] = useState<SwimRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [showCSVUpload, setShowCSVUpload] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -34,49 +36,57 @@ export default function RecordListDetailPage() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const loadData = useCallback(async () => {
-    const supabase = createClient();
+    setLoadError(false);
+    try {
+      const supabase = createClient();
 
-    const { data: listData } = await supabase
-      .from("record_lists")
-      .select("*")
-      .eq("id", listId)
-      .single();
+      const { data: listData, error: listError } = await supabase
+        .from("record_lists")
+        .select("*")
+        .eq("id", listId)
+        .single();
+      if (listError) throw listError;
 
-    if (listData) {
-      setRecordList(listData as RecordList);
-      setEditTitle(listData.title);
-      setEditCourseType(listData.course_type as "LCM" | "SCM" | "SCY");
-      setEditGender(listData.gender as "male" | "female" | "mixed" || "male");
+      if (listData) {
+        setRecordList(listData as RecordList);
+        setEditTitle(listData.title);
+        setEditCourseType(listData.course_type as "LCM" | "SCM" | "SCY");
+        setEditGender((listData.gender as "male" | "female" | "mixed") || "male");
+      }
+
+      const { data: recordsData, error: recordsError } = await supabase
+        .from("records")
+        .select("*")
+        .eq("record_list_id", listId)
+        .order("sort_order", { ascending: true });
+      if (recordsError) throw recordsError;
+
+      if (recordsData) {
+        setRecords(recordsData as SwimRecord[]);
+      }
+
+      const { data: ageGroupData } = await supabase
+        .from("standard_age_groups")
+        .select("name")
+        .order("sort_order", { ascending: true });
+      if (ageGroupData) {
+        setAgeGroups(ageGroupData.map((a) => a.name as string));
+      }
+
+      const { data: relayEventData } = await supabase
+        .from("standard_events")
+        .select("name")
+        .eq("kind", "relay")
+        .order("sort_order", { ascending: true });
+      if (relayEventData) {
+        setRelayEvents(relayEventData.map((e) => e.name as string));
+      }
+    } catch (e) {
+      console.error("[data-access] dashboard: list detail", e);
+      setLoadError(true);
+    } finally {
+      setLoading(false);
     }
-
-    const { data: recordsData } = await supabase
-      .from("records")
-      .select("*")
-      .eq("record_list_id", listId)
-      .order("sort_order", { ascending: true });
-
-    if (recordsData) {
-      setRecords(recordsData as SwimRecord[]);
-    }
-
-    const { data: ageGroupData } = await supabase
-      .from("standard_age_groups")
-      .select("name")
-      .order("sort_order", { ascending: true });
-    if (ageGroupData) {
-      setAgeGroups(ageGroupData.map((a) => a.name as string));
-    }
-
-    const { data: relayEventData } = await supabase
-      .from("standard_events")
-      .select("name")
-      .eq("kind", "relay")
-      .order("sort_order", { ascending: true });
-    if (relayEventData) {
-      setRelayEvents(relayEventData.map((e) => e.name as string));
-    }
-
-    setLoading(false);
   }, [listId]);
 
   useEffect(() => {
@@ -87,33 +97,187 @@ export default function RecordListDetailPage() {
     editableRecords: Array<Omit<SwimRecord, "id" | "created_at" | "updated_at" | "record_list_id"> & { id?: string; isNew?: boolean; _breakingRecordId?: string }>,
     historyUpdates?: HistoryFlagUpdate[]
   ) => {
-    const supabase = createClient();
+    try {
+      const supabase = createClient();
 
-    // Separate new and existing records
-    const newRecords = editableRecords.filter((r) => !r.id || r.isNew);
-    const existingRecords = editableRecords.filter((r) => r.id && !r.isNew);
+      // Separate new and existing records
+      const newRecords = editableRecords.filter((r) => !r.id || r.isNew);
+      const existingRecords = editableRecords.filter((r) => r.id && !r.isNew);
 
-    // Track which old records need to be marked as superseded
-    const recordsToSupersede: Array<{ oldId: string; newId: string }> = [];
+      // Track which old records need to be marked as superseded
+      const recordsToSupersede: Array<{ oldId: string; newId: string }> = [];
 
-    // Insert new records one by one to get their IDs for linking
-    for (const r of newRecords) {
-      const { data: insertedRecord, error } = await supabase
-        .from("records")
-        .insert({
+      // Insert new records one by one to get their IDs for linking
+      for (const r of newRecords) {
+        const { data: insertedRecord, error } = await supabase
+          .from("records")
+          .insert({
+            record_list_id: listId,
+            event_name: r.event_name,
+            time_ms: r.time_ms,
+            swimmer_name: r.swimmer_name,
+            swimmer_name_2: r.swimmer_name_2 ?? null,
+            swimmer_name_3: r.swimmer_name_3 ?? null,
+            swimmer_name_4: r.swimmer_name_4 ?? null,
+            age_group: r.age_group ?? null,
+            record_club: r.record_club ?? null,
+            province: r.province ?? null,
+            record_date: r.record_date,
+            location: r.location,
+            sort_order: r.sort_order,
+            is_national: r.is_national || false,
+            is_current_national: r.is_current_national || false,
+            is_provincial: r.is_provincial || false,
+            is_current_provincial: r.is_current_provincial || false,
+            is_split: r.is_split || false,
+            is_relay_split: r.is_relay_split || false,
+            is_new: r.is_new || false,
+            is_world_record: r.is_world_record || false,
+            is_current: true,
+            superseded_by: null,
+          })
+          .select()
+          .single();
+
+        if (error) {
+          setMessage({ type: "error", text: error.message });
+          return;
+        }
+
+        // If this new record is breaking an old one, track it for linking
+        if (r._breakingRecordId && insertedRecord) {
+          recordsToSupersede.push({
+            oldId: r._breakingRecordId,
+            newId: insertedRecord.id,
+          });
+        }
+      }
+
+      // Mark old records as superseded
+      for (const { oldId, newId } of recordsToSupersede) {
+        const { error } = await supabase
+          .from("records")
+          .update({
+            superseded_by: newId,
+            is_current: false,
+          })
+          .eq("id", oldId);
+
+        if (error) {
+          setMessage({ type: "error", text: error.message });
+          return;
+        }
+
+        // Re-parent any older history records that pointed to the old record
+        // so the full chain is visible when looking up the new current record
+        await supabase
+          .from("records")
+          .update({ superseded_by: newId })
+          .eq("superseded_by", oldId);
+      }
+
+      // Update existing records
+      for (const record of existingRecords) {
+        const { error } = await supabase
+          .from("records")
+          .update({
+            event_name: record.event_name,
+            time_ms: record.time_ms,
+            swimmer_name: record.swimmer_name,
+            swimmer_name_2: record.swimmer_name_2 ?? null,
+            swimmer_name_3: record.swimmer_name_3 ?? null,
+            swimmer_name_4: record.swimmer_name_4 ?? null,
+            age_group: record.age_group ?? null,
+            record_club: record.record_club ?? null,
+            province: record.province ?? null,
+            record_date: record.record_date,
+            location: record.location,
+            sort_order: record.sort_order,
+            is_national: record.is_national || false,
+            is_current_national: record.is_current_national || false,
+            is_provincial: record.is_provincial || false,
+            is_current_provincial: record.is_current_provincial || false,
+            is_split: record.is_split || false,
+            is_relay_split: record.is_relay_split || false,
+            is_new: record.is_new || false,
+            is_world_record: record.is_world_record || false,
+          })
+          .eq("id", record.id);
+
+        if (error) {
+          setMessage({ type: "error", text: error.message });
+          return;
+        }
+      }
+
+      // Update history record flags
+      if (historyUpdates) {
+        for (const update of historyUpdates) {
+          const { error } = await supabase
+            .from("records")
+            .update({
+              is_national: update.flags.is_national,
+              is_current_national: update.flags.is_current_national,
+              is_provincial: update.flags.is_provincial,
+              is_current_provincial: update.flags.is_current_provincial,
+              is_split: update.flags.is_split,
+              is_relay_split: update.flags.is_relay_split,
+              is_new: update.flags.is_new,
+              is_world_record: update.flags.is_world_record,
+            })
+            .eq("id", update.id);
+
+          if (error) {
+            setMessage({ type: "error", text: error.message });
+            return;
+          }
+        }
+      }
+
+      setMessage({ type: "success", text: "Records saved successfully!" });
+      loadData();
+    } catch (e) {
+      console.error("[mutation] dashboard: save records", e);
+      setMessage({ type: "error", text: "Something went wrong. Please try again." });
+    }
+  };
+
+  const handleDeleteRecord = async (id: string) => {
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.from("records").delete().eq("id", id);
+
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+      }
+    } catch (e) {
+      console.error("[mutation] dashboard: delete record", e);
+      setMessage({ type: "error", text: "Something went wrong. Please try again." });
+    }
+  };
+
+  const handleCSVUpload = async (csvRecords: CSVRecord[]) => {
+    try {
+      const supabase = createClient();
+
+      // Filter to only count current records for sort_order
+      const currentRecordsCount = records.filter(r => r.is_current !== false).length;
+
+      const { error } = await supabase.from("records").insert(
+        csvRecords.map((r, i) => ({
           record_list_id: listId,
           event_name: r.event_name,
           time_ms: r.time_ms,
           swimmer_name: r.swimmer_name,
-          swimmer_name_2: r.swimmer_name_2 ?? null,
-          swimmer_name_3: r.swimmer_name_3 ?? null,
-          swimmer_name_4: r.swimmer_name_4 ?? null,
-          age_group: r.age_group ?? null,
-          record_club: r.record_club ?? null,
-          province: r.province ?? null,
+          swimmer_name_2: r.swimmer_name_2,
+          swimmer_name_3: r.swimmer_name_3,
+          swimmer_name_4: r.swimmer_name_4,
+          age_group: r.age_group,
+          record_club: r.record_club,
+          province: r.province,
           record_date: r.record_date,
           location: r.location,
-          sort_order: r.sort_order,
+          sort_order: currentRecordsCount + i,
           is_national: r.is_national || false,
           is_current_national: r.is_current_national || false,
           is_provincial: r.is_provincial || false,
@@ -124,191 +288,62 @@ export default function RecordListDetailPage() {
           is_world_record: r.is_world_record || false,
           is_current: true,
           superseded_by: null,
-        })
-        .select()
-        .single();
+        }))
+      );
 
       if (error) {
         setMessage({ type: "error", text: error.message });
-        return;
+      } else {
+        setMessage({ type: "success", text: `Imported ${csvRecords.length} records!` });
+        setShowCSVUpload(false);
+        loadData();
       }
-
-      // If this new record is breaking an old one, track it for linking
-      if (r._breakingRecordId && insertedRecord) {
-        recordsToSupersede.push({
-          oldId: r._breakingRecordId,
-          newId: insertedRecord.id,
-        });
-      }
-    }
-
-    // Mark old records as superseded
-    for (const { oldId, newId } of recordsToSupersede) {
-      const { error } = await supabase
-        .from("records")
-        .update({
-          superseded_by: newId,
-          is_current: false,
-        })
-        .eq("id", oldId);
-
-      if (error) {
-        setMessage({ type: "error", text: error.message });
-        return;
-      }
-
-      // Re-parent any older history records that pointed to the old record
-      // so the full chain is visible when looking up the new current record
-      await supabase
-        .from("records")
-        .update({ superseded_by: newId })
-        .eq("superseded_by", oldId);
-    }
-
-    // Update existing records
-    for (const record of existingRecords) {
-      const { error } = await supabase
-        .from("records")
-        .update({
-          event_name: record.event_name,
-          time_ms: record.time_ms,
-          swimmer_name: record.swimmer_name,
-          swimmer_name_2: record.swimmer_name_2 ?? null,
-          swimmer_name_3: record.swimmer_name_3 ?? null,
-          swimmer_name_4: record.swimmer_name_4 ?? null,
-          age_group: record.age_group ?? null,
-          record_club: record.record_club ?? null,
-          province: record.province ?? null,
-          record_date: record.record_date,
-          location: record.location,
-          sort_order: record.sort_order,
-          is_national: record.is_national || false,
-          is_current_national: record.is_current_national || false,
-          is_provincial: record.is_provincial || false,
-          is_current_provincial: record.is_current_provincial || false,
-          is_split: record.is_split || false,
-          is_relay_split: record.is_relay_split || false,
-          is_new: record.is_new || false,
-          is_world_record: record.is_world_record || false,
-        })
-        .eq("id", record.id);
-
-      if (error) {
-        setMessage({ type: "error", text: error.message });
-        return;
-      }
-    }
-
-    // Update history record flags
-    if (historyUpdates) {
-      for (const update of historyUpdates) {
-        const { error } = await supabase
-          .from("records")
-          .update({
-            is_national: update.flags.is_national,
-            is_current_national: update.flags.is_current_national,
-            is_provincial: update.flags.is_provincial,
-            is_current_provincial: update.flags.is_current_provincial,
-            is_split: update.flags.is_split,
-            is_relay_split: update.flags.is_relay_split,
-            is_new: update.flags.is_new,
-            is_world_record: update.flags.is_world_record,
-          })
-          .eq("id", update.id);
-
-        if (error) {
-          setMessage({ type: "error", text: error.message });
-          return;
-        }
-      }
-    }
-
-    setMessage({ type: "success", text: "Records saved successfully!" });
-    loadData();
-  };
-
-  const handleDeleteRecord = async (id: string) => {
-    const supabase = createClient();
-    const { error } = await supabase.from("records").delete().eq("id", id);
-
-    if (error) {
-      setMessage({ type: "error", text: error.message });
-    }
-  };
-
-  const handleCSVUpload = async (csvRecords: CSVRecord[]) => {
-    const supabase = createClient();
-
-    // Filter to only count current records for sort_order
-    const currentRecordsCount = records.filter(r => r.is_current !== false).length;
-
-    const { error } = await supabase.from("records").insert(
-      csvRecords.map((r, i) => ({
-        record_list_id: listId,
-        event_name: r.event_name,
-        time_ms: r.time_ms,
-        swimmer_name: r.swimmer_name,
-        swimmer_name_2: r.swimmer_name_2,
-        swimmer_name_3: r.swimmer_name_3,
-        swimmer_name_4: r.swimmer_name_4,
-        age_group: r.age_group,
-        record_club: r.record_club,
-        province: r.province,
-        record_date: r.record_date,
-        location: r.location,
-        sort_order: currentRecordsCount + i,
-        is_national: r.is_national || false,
-        is_current_national: r.is_current_national || false,
-        is_provincial: r.is_provincial || false,
-        is_current_provincial: r.is_current_provincial || false,
-        is_split: r.is_split || false,
-        is_relay_split: r.is_relay_split || false,
-        is_new: r.is_new || false,
-        is_world_record: r.is_world_record || false,
-        is_current: true,
-        superseded_by: null,
-      }))
-    );
-
-    if (error) {
-      setMessage({ type: "error", text: error.message });
-    } else {
-      setMessage({ type: "success", text: `Imported ${csvRecords.length} records!` });
-      setShowCSVUpload(false);
-      loadData();
+    } catch (e) {
+      console.error("[mutation] dashboard: csv upload", e);
+      setMessage({ type: "error", text: "Something went wrong. Please try again." });
     }
   };
 
   const handleUpdateList = async () => {
     if (!recordList) return;
 
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("record_lists")
-      .update({
-        title: editTitle,
-        course_type: editCourseType,
-        gender: editGender,
-      })
-      .eq("id", listId);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("record_lists")
+        .update({
+          title: editTitle,
+          course_type: editCourseType,
+          gender: editGender,
+        })
+        .eq("id", listId);
 
-    if (error) {
-      setMessage({ type: "error", text: error.message });
-    } else {
-      setMessage({ type: "success", text: "List updated!" });
-      setIsEditing(false);
-      loadData();
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+      } else {
+        setMessage({ type: "success", text: "List updated!" });
+        setIsEditing(false);
+        loadData();
+      }
+    } catch (e) {
+      console.error("[mutation] dashboard: update list", e);
+      setMessage({ type: "error", text: "Something went wrong. Please try again." });
     }
   };
 
   const handleDeleteList = async () => {
-    const supabase = createClient();
-    const { error } = await supabase.from("record_lists").delete().eq("id", listId);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.from("record_lists").delete().eq("id", listId);
 
-    if (error) {
-      setMessage({ type: "error", text: error.message });
-    } else {
-      router.push("/dashboard/records");
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+      } else {
+        router.push("/dashboard/records");
+      }
+    } catch (e) {
+      console.error("[mutation] dashboard: delete list", e);
+      setMessage({ type: "error", text: "Something went wrong. Please try again." });
     }
   };
 
@@ -318,6 +353,10 @@ export default function RecordListDetailPage() {
         <div className="text-gray-500 dark:text-gray-400">Loading...</div>
       </div>
     );
+  }
+
+  if (loadError) {
+    return <LoadError onRetry={loadData} />;
   }
 
   if (!recordList) {
