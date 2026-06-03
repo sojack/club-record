@@ -179,7 +179,6 @@ export default function BulkUploadPage() {
       }
 
       setResults({ success, failed });
-      setProgress(null);
     } catch (e) {
       console.error("[mutation] dashboard: bulk upload", e);
       setResults({
@@ -188,6 +187,7 @@ export default function BulkUploadPage() {
       });
     } finally {
       setUploading(false);
+      setProgress(null);
     }
   };
 

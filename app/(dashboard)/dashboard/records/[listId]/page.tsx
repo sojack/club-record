@@ -44,7 +44,7 @@ export default function RecordListDetailPage() {
         .from("record_lists")
         .select("*")
         .eq("id", listId)
-        .single();
+        .maybeSingle();
       if (listError) throw listError;
 
       if (listData) {
