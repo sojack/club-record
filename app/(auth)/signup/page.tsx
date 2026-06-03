@@ -38,66 +38,76 @@ export default function SignupPage() {
   const handleSkip = async () => {
     setError(null);
     setLoading(true);
+    try {
+      const supabase = createClient();
 
-    const supabase = createClient();
+      const { error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
 
-    // Create user account only
-    const { error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+      if (authError) {
+        setError(authError.message);
+        return;
+      }
 
-    if (authError) {
-      setError(authError.message);
+      router.push("/dashboard");
+      router.refresh();
+    } catch (e) {
+      console.error("[mutation] auth: signup (skip club)", e);
+      setError("Something went wrong. Please try again.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    router.push("/dashboard");
-    router.refresh();
   };
 
   const handleClubSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    try {
+      const supabase = createClient();
 
-    const supabase = createClient();
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
 
-    // Create user account
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+      if (authError) {
+        setError(authError.message);
+        return;
+      }
 
-    if (authError) {
-      setError(authError.message);
+      if (!authData.user) {
+        setError("Failed to create account");
+        return;
+      }
+
+      const { error: clubError } = await supabase.from("clubs").insert({
+        user_id: authData.user.id,
+        short_name: shortName,
+        full_name: fullName,
+        slug: slug || generateSlug(shortName),
+      });
+
+      if (clubError) {
+        // Account was created but the club insert failed — don't leave the user
+        // stuck on this form or show a raw DB error. Send them to the dashboard,
+        // where they can set up the club from the "Create Club" flow.
+        console.error("[mutation] auth: signup club insert", clubError);
+        router.push("/dashboard");
+        router.refresh();
+        return;
+      }
+
+      router.push("/dashboard");
+      router.refresh();
+    } catch (e) {
+      console.error("[mutation] auth: signup (with club)", e);
+      setError("Something went wrong. Please try again.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    if (!authData.user) {
-      setError("Failed to create account");
-      setLoading(false);
-      return;
-    }
-
-    // Create club profile
-    const { error: clubError } = await supabase.from("clubs").insert({
-      user_id: authData.user.id,
-      short_name: shortName,
-      full_name: fullName,
-      slug: slug || generateSlug(shortName),
-    });
-
-    if (clubError) {
-      setError(clubError.message);
-      setLoading(false);
-      return;
-    }
-
-    router.push("/dashboard");
-    router.refresh();
   };
 
   const handleShortNameChange = (value: string) => {
