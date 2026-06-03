@@ -32,6 +32,9 @@ export default function ResetPasswordPage() {
       if (data.session) {
         setReady(true);
       }
+    }).catch((e) => {
+      console.error("[auth] reset-password: getSession", e);
+      // The 3s timeout below still reveals the form, so just log.
     });
 
     // If no session after 3 seconds, show the form anyway
@@ -58,25 +61,28 @@ export default function ResetPasswordPage() {
     }
 
     setLoading(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.updateUser({
+        password: password,
+      });
 
-    const supabase = createClient();
-    const { error } = await supabase.auth.updateUser({
-      password: password,
-    });
+      if (error) {
+        setError(error.message);
+        return;
+      }
 
-    if (error) {
-      setError(error.message);
+      setSuccess(true);
+      setTimeout(() => {
+        router.push("/dashboard");
+        router.refresh();
+      }, 2000);
+    } catch (err) {
+      console.error("[mutation] auth: reset password", err);
+      setError("Something went wrong. Please try again.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setSuccess(true);
-    setLoading(false);
-
-    setTimeout(() => {
-      router.push("/dashboard");
-      router.refresh();
-    }, 2000);
   };
 
   if (!ready) {
