@@ -25,31 +25,42 @@ why it matters, and a checkbox. Spec for the first batch of work:
   structured **400** (was an uncaught 500 or a corrupt service-role insert).
   Auth (401/403) still precedes validation. The 3 hand-rolled `interface`s
   were replaced by `z.infer` types.
+- [x] **Near-absent error handling — dashboard client (C2) + auth (C3)** —
+  spec/plan `docs/superpowers/{specs,plans}/2026-06-03-error-handling-client-auth.*`.
+  Added a shared `components/LoadError.tsx` (inline message + retry, the
+  read-path analogue of the route boundaries). Every dashboard client loader
+  (`dashboard`, `records` index, `records/[listId]`, `members`) now wraps its
+  read in `try/catch/finally`, throws on the returned Supabase `error`, and
+  renders `<LoadError>` instead of a false-empty / false-"not found" state.
+  Every dashboard + auth mutation/auth handler (~20: bulk delete/export, list
+  save/delete/CSV, member add/role/remove/transfer, settings, new list, new
+  club, bulk upload, login, signup, forgot/reset password) is wrapped so a
+  thrown error shows a generic message and the control re-enables (no frozen
+  buttons). Signup now recovers from an orphaned-account club-insert failure
+  (redirects to the dashboard instead of showing a raw DB error);
+  reset-password guards its `getSession()` probe. Verified: `tsc` clean,
+  `vitest` 73/73, `eslint` improved (13→8 problems, the immutability errors in
+  the touched files cleared), `next build` clean. Component/page **tests** for
+  these paths remain deferred — tracked under High #1.
 
 ## High
 
-- [ ] **No automated tests beyond `time-utils` / `csv-parser`** — the rest of
-  the app (components, pages, API routes, auth) has zero coverage; regressions
-  ship silently.
-- [ ] **Near-absent error handling — dashboard client + auth (remaining)** —
-  the public path (A) and the admin/dashboard **server** reads (C1: `unwrap`
-  in `app/admin/page.tsx`, `app/(dashboard)/layout.tsx`, the `clubRow` lookup
-  in `app/api/admin/upload/route.ts`; new `app/admin/error.tsx`) are now
-  hardened. Remaining: the ~6 dashboard **client** components — inline
-  error-state + retry (sub-project C2); and the auth flows
-  (signup/reset-password) (sub-project C3).
-- [ ] **Near-absent error handling** — only ~2 files use `try/catch`; most
-  Supabase calls outside admin routes don't check `error`.
+- [ ] **No automated tests beyond `time-utils` / `csv-parser`** — components,
+  pages, and auth have zero coverage; regressions ship silently. (API routes
+  now have tests.) Needs a jsdom + React Testing Library foundation; the
+  error-handling paths just hardened (A/B/C1/C2/C3) are the natural first
+  targets.
 
 ## Medium
 
-- [ ] **Pre-existing lint failures (7 errors + 6 warnings)** — mostly
-  `react-hooks/set-state-in-effect` (synchronous `setState` in effects causing
-  cascading renders) in `contexts/ClubContext.tsx`,
-  `components/DashboardShell.tsx`, `app/(dashboard)/dashboard/page.tsx`,
-  `app/(dashboard)/dashboard/settings/page.tsx`,
-  `app/(dashboard)/dashboard/members/page.tsx`; unused-var warnings in
-  `components/RecordTable.tsx`. Lint is currently non-blocking in CI because of
+- [ ] **Pre-existing lint failures (2 errors + 6 warnings)** — the 2 remaining
+  errors are `react-hooks/set-state-in-effect` (synchronous `setState` in
+  effects causing cascading renders) in `contexts/ClubContext.tsx:39` and
+  `components/DashboardShell.tsx:21`. (The `react-hooks/immutability` errors in
+  the dashboard pages were incidentally cleared by the C2 try/catch
+  restructuring.) The 6 warnings are `exhaustive-deps` (loaders omitted from
+  effect deps) + unused vars in `components/RecordTable.tsx` and
+  `bulk-upload/page.tsx`. Lint is currently non-blocking in CI because of
   these. Fix them, then **promote `npm run lint` to a hard CI gate** (remove
   `continue-on-error` in `.github/workflows/ci.yml`).
 
