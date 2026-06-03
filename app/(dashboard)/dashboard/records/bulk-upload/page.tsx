@@ -66,32 +66,37 @@ export default function BulkUploadPage() {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    const parsed: ParsedFile[] = [];
+    try {
+      const parsed: ParsedFile[] = [];
 
-    for (const file of Array.from(files)) {
-      const content = await file.text();
-      const { title, slug, courseType, gender, recordType } = parseFilename(file.name);
-      const listScope = scopeForClubLevel(selectedClub?.level);
-      const { records, errors } = parseRecordsCSV(content, {
-        relay: recordType === "relay",
-        scope: listScope,
-      });
+      for (const file of Array.from(files)) {
+        const content = await file.text();
+        const { title, slug, courseType, gender, recordType } = parseFilename(file.name);
+        const listScope = scopeForClubLevel(selectedClub?.level);
+        const { records, errors } = parseRecordsCSV(content, {
+          relay: recordType === "relay",
+          scope: listScope,
+        });
 
-      parsed.push({
-        file,
-        title,
-        slug,
-        courseType,
-        gender,
-        recordType,
-        listScope,
-        records,
-        errors,
-      });
+        parsed.push({
+          file,
+          title,
+          slug,
+          courseType,
+          gender,
+          recordType,
+          listScope,
+          records,
+          errors,
+        });
+      }
+
+      setParsedFiles(parsed);
+      setResults(null);
+    } catch (err) {
+      console.error("[mutation] dashboard: parse upload files", err);
+      setResults({ success: [], failed: ["Couldn't read the selected file(s). Please try again."] });
     }
-
-    setParsedFiles(parsed);
-    setResults(null);
   };
 
   const updateFileConfig = (index: number, updates: Partial<ParsedFile>) => {
@@ -110,71 +115,80 @@ export default function BulkUploadPage() {
     const success: string[] = [];
     const failed: string[] = [];
 
-    for (let i = 0; i < parsedFiles.length; i++) {
-      const file = parsedFiles[i];
-      setProgress({ current: i + 1, total: parsedFiles.length });
+    try {
+      for (let i = 0; i < parsedFiles.length; i++) {
+        const file = parsedFiles[i];
+        setProgress({ current: i + 1, total: parsedFiles.length });
 
-      if (file.records.length === 0) {
-        failed.push(`${file.title}: No valid records`);
-        continue;
+        if (file.records.length === 0) {
+          failed.push(`${file.title}: No valid records`);
+          continue;
+        }
+
+        // Create record list
+        const { data: listData, error: listError } = await supabase
+          .from("record_lists")
+          .insert({
+            club_id: selectedClub.id,
+            title: file.title,
+            slug: file.slug,
+            course_type: file.courseType,
+            gender: file.gender,
+            record_type: file.recordType,
+            scope: file.listScope,
+          })
+          .select()
+          .single();
+
+        if (listError) {
+          failed.push(`${file.title}: ${listError.message}`);
+          continue;
+        }
+
+        // Insert records
+        const { error: recordsError } = await supabase.from("records").insert(
+          file.records.map((r, idx) => ({
+            record_list_id: listData.id,
+            event_name: r.event_name,
+            time_ms: r.time_ms,
+            swimmer_name: r.swimmer_name,
+            swimmer_name_2: r.swimmer_name_2,
+            swimmer_name_3: r.swimmer_name_3,
+            swimmer_name_4: r.swimmer_name_4,
+            age_group: r.age_group,
+            record_club: r.record_club,
+            province: r.province,
+            record_date: r.record_date,
+            location: r.location,
+            sort_order: idx,
+            is_national: r.is_national,
+            is_current_national: r.is_current_national,
+            is_provincial: r.is_provincial,
+            is_current_provincial: r.is_current_provincial,
+            is_split: r.is_split,
+            is_relay_split: r.is_relay_split,
+            is_new: r.is_new,
+          }))
+        );
+
+        if (recordsError) {
+          failed.push(`${file.title}: Records failed - ${recordsError.message}`);
+        } else {
+          success.push(`${file.title}: ${file.records.length} records`);
+        }
       }
 
-      // Create record list
-      const { data: listData, error: listError } = await supabase
-        .from("record_lists")
-        .insert({
-          club_id: selectedClub.id,
-          title: file.title,
-          slug: file.slug,
-          course_type: file.courseType,
-          gender: file.gender,
-          record_type: file.recordType,
-          scope: file.listScope,
-        })
-        .select()
-        .single();
-
-      if (listError) {
-        failed.push(`${file.title}: ${listError.message}`);
-        continue;
-      }
-
-      // Insert records
-      const { error: recordsError } = await supabase.from("records").insert(
-        file.records.map((r, idx) => ({
-          record_list_id: listData.id,
-          event_name: r.event_name,
-          time_ms: r.time_ms,
-          swimmer_name: r.swimmer_name,
-          swimmer_name_2: r.swimmer_name_2,
-          swimmer_name_3: r.swimmer_name_3,
-          swimmer_name_4: r.swimmer_name_4,
-          age_group: r.age_group,
-          record_club: r.record_club,
-          province: r.province,
-          record_date: r.record_date,
-          location: r.location,
-          sort_order: idx,
-          is_national: r.is_national,
-          is_current_national: r.is_current_national,
-          is_provincial: r.is_provincial,
-          is_current_provincial: r.is_current_provincial,
-          is_split: r.is_split,
-          is_relay_split: r.is_relay_split,
-          is_new: r.is_new,
-        }))
-      );
-
-      if (recordsError) {
-        failed.push(`${file.title}: Records failed - ${recordsError.message}`);
-      } else {
-        success.push(`${file.title}: ${file.records.length} records`);
-      }
+      setResults({ success, failed });
+      setProgress(null);
+    } catch (e) {
+      console.error("[mutation] dashboard: bulk upload", e);
+      setResults({
+        success,
+        failed: [...failed, "Something went wrong. Please try again."],
+      });
+    } finally {
+      setUploading(false);
     }
-
-    setResults({ success, failed });
-    setUploading(false);
-    setProgress(null);
   };
 
   if (clubLoading) {
