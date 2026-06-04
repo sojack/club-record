@@ -80,7 +80,12 @@ describe("RecordTable", () => {
     expect(onDelete).toHaveBeenCalledWith("r1");
   });
 
-  it("does not call onDelete when removing a brand-new unsaved row", async () => {
+  // A row added via "+ Add Row" has no `id` yet, so removeRow must not call
+  // onDelete (nothing persisted to delete). This asserts the `record.id`
+  // discriminator; the additional `!record.isNew` guard in removeRow is an
+  // internal defensive check for id-bearing-but-new rows, which cannot be
+  // injected through the `records` prop, so it is out of scope here.
+  it("does not call onDelete when removing an unsaved row (no id yet)", async () => {
     const onDelete = vi.fn();
     render(<RecordTable records={[]} onSave={vi.fn()} onDelete={onDelete} courseType="SCM" />);
     await userEvent.click(screen.getByRole("button", { name: "+ Add Row" }));
