@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useClub } from "@/contexts/ClubContext";
@@ -13,15 +13,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
 
-  useEffect(() => {
-    if (selectedClub) {
-      loadRecordLists();
-    } else if (!clubLoading) {
-      setLoading(false);
-    }
-  }, [selectedClub, clubLoading]);
-
-  const loadRecordLists = async () => {
+  const loadRecordLists = useCallback(async () => {
     if (!selectedClub) return;
 
     setLoading(true);
@@ -43,7 +35,15 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedClub]);
+
+  useEffect(() => {
+    if (selectedClub) {
+      loadRecordLists();
+    } else if (!clubLoading) {
+      setLoading(false);
+    }
+  }, [selectedClub, clubLoading, loadRecordLists]);
 
   const totalRecords = recordLists.reduce(
     (acc, list) => acc + (list.records?.[0]?.count || 0),

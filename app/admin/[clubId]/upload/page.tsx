@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { parseRecordsCSV, CSVRecord } from "@/lib/csv-parser";
@@ -73,13 +73,7 @@ export default function AdminUploadPage({
     params.then((p) => setClubId(p.clubId));
   }, [params]);
 
-  useEffect(() => {
-    if (clubId) {
-      loadClub();
-    }
-  }, [clubId]);
-
-  const loadClub = async () => {
+  const loadClub = useCallback(async () => {
     if (!clubId) return;
     const supabase = createClient();
     const { data } = await supabase
@@ -90,7 +84,13 @@ export default function AdminUploadPage({
 
     setClub(data as Club | null);
     setLoading(false);
-  };
+  }, [clubId]);
+
+  useEffect(() => {
+    if (clubId) {
+      loadClub();
+    }
+  }, [clubId, loadClub]);
 
   useEffect(() => {
     if (club) {

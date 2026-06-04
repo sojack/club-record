@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -32,21 +32,7 @@ export default function MembersPage() {
   const [removeTarget, setRemoveTarget] = useState<ClubMemberWithEmail | null>(null);
   const [removing, setRemoving] = useState(false);
 
-  useEffect(() => {
-    // Redirect non-owners to dashboard
-    if (!clubLoading && !isOwner) {
-      router.push("/dashboard");
-      return;
-    }
-
-    if (selectedClub && isOwner) {
-      loadMembers();
-    } else if (!clubLoading) {
-      setLoading(false);
-    }
-  }, [selectedClub, clubLoading, isOwner, router]);
-
-  const loadMembers = async () => {
+  const loadMembers = useCallback(async () => {
     if (!selectedClub) return;
 
     setLoading(true);
@@ -63,7 +49,21 @@ export default function MembersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedClub]);
+
+  useEffect(() => {
+    // Redirect non-owners to dashboard
+    if (!clubLoading && !isOwner) {
+      router.push("/dashboard");
+      return;
+    }
+
+    if (selectedClub && isOwner) {
+      loadMembers();
+    } else if (!clubLoading) {
+      setLoading(false);
+    }
+  }, [selectedClub, clubLoading, isOwner, router, loadMembers]);
 
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
