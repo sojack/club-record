@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useClub } from "@/contexts/ClubContext";
@@ -55,7 +54,6 @@ function parseFilename(filename: string): {
 }
 
 export default function BulkUploadPage() {
-  const router = useRouter();
   const { selectedClub, isLoading: clubLoading } = useClub();
   const [parsedFiles, setParsedFiles] = useState<ParsedFile[]>([]);
   const [uploading, setUploading] = useState(false);

@@ -22,7 +22,6 @@ interface RecordTableProps {
   records: SwimRecord[];
   onSave: (records: EditableRecord[], historyUpdates?: HistoryFlagUpdate[]) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
-  onBreakRecord?: (oldRecordId: string, newRecordId: string) => Promise<void>;
   readOnly?: boolean;
   courseType?: "LCM" | "SCM" | "SCY";
   recordType?: "individual" | "relay";
@@ -45,7 +44,7 @@ function getStandardEvents(courseType?: string): string[] {
   return events;
 }
 
-export default function RecordTable({ records, onSave, onDelete, onBreakRecord, readOnly = false, courseType, recordType = "individual", scope = "club", ageGroups = [], relayEvents = [] }: RecordTableProps) {
+export default function RecordTable({ records, onSave, onDelete, readOnly = false, courseType, recordType = "individual", scope = "club", ageGroups = [], relayEvents = [] }: RecordTableProps) {
   const isRelay = recordType === "relay";
   const showHolderClub = scope !== "club";
   const showProvince = scope === "national";
