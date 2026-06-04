@@ -15,11 +15,7 @@ jobs:
           node-version: 25
           cache: npm
       - run: npm ci
-      # Lint is non-blocking: the codebase has pre-existing react-hooks
-      # errors tracked in TECH_DEBT.md. Visible in the logs but does not
-      # fail CI. Promote to a hard gate once the lint debt is paid.
-      - name: Lint (non-blocking)
+      - name: Lint
         run: npm run lint
-        continue-on-error: true
       - run: npx tsc --noEmit
       - run: npm test
