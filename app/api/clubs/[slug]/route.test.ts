@@ -1,32 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { PostgrestError } from "@supabase/supabase-js";
 import { NextRequest } from "next/server";
+import { makeSupabase, pgError, type QueryResult } from "@/lib/test/supabase-mock";
 
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 import { createClient } from "@/lib/supabase/server";
 import { GET } from "./route";
-
-type QueryResult = { data: unknown; error: PostgrestError | null };
-
-function makeChain(result: QueryResult) {
-  const chain: Record<string, unknown> = {};
-  for (const m of ["select", "eq", "order", "limit"]) chain[m] = () => chain;
-  chain.single = () => Promise.resolve(result);
-  chain.maybeSingle = () => Promise.resolve(result);
-  chain.then = (
-    onF: (v: QueryResult) => unknown,
-    onR?: (e: unknown) => unknown
-  ) => Promise.resolve(result).then(onF, onR);
-  return chain;
-}
-
-function makeSupabase(byTable: Record<string, QueryResult>) {
-  return {
-    from: (t: string) => makeChain(byTable[t] ?? { data: null, error: null }),
-  };
-}
-
-const pgError = { message: "boom", code: "XX000" } as unknown as PostgrestError;
 const club = {
   id: "c1",
   slug: "abc",

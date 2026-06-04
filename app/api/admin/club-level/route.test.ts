@@ -1,22 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NextRequest } from "next/server";
+import { makeChain } from "@/lib/test/supabase-mock";
 
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { POST } from "./route";
-
-function makeChain(result: { data?: unknown; error: unknown }) {
-  const chain: Record<string, unknown> = {};
-  for (const m of ["select", "eq", "insert", "update", "order", "limit"])
-    chain[m] = () => chain;
-  chain.single = () => Promise.resolve(result);
-  chain.maybeSingle = () => Promise.resolve(result);
-  chain.then = (f: (v: unknown) => unknown, r?: (e: unknown) => unknown) =>
-    Promise.resolve(result).then(f, r);
-  return chain;
-}
 
 function setup(opts: {
   user: { email: string } | null;
