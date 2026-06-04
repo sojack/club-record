@@ -45,11 +45,18 @@ why it matters, and a checkbox. Spec for the first batch of work:
 
 ## High
 
-- [ ] **No automated tests beyond `time-utils` / `csv-parser`** — components,
-  pages, and auth have zero coverage; regressions ship silently. (API routes
-  now have tests.) Needs a jsdom + React Testing Library foundation; the
-  error-handling paths just hardened (A/B/C1/C2/C3) are the natural first
-  targets.
+- [ ] **Component/page/auth test coverage — partial** — a jsdom + React
+  Testing Library foundation now exists (`vitest.setup.ts`, per-file
+  `// @vitest-environment jsdom` pragma; shared client mock in
+  `lib/test/supabase-mock.ts`). The C2/C3 error-handling paths have
+  representative coverage: `LoadError`, the read pattern + retry
+  (`dashboard/page`), `members`' `error→loadError`, the mutation pattern
+  (`login`, `settings`), signup orphaned-account recovery, and the
+  reset-password session guard (spec/plan
+  `docs/superpowers/{specs,plans}/2026-06-04-component-test-foundation.*`).
+  **Still uncovered:** the large editors (`records/[listId]/page.tsx`,
+  `components/RecordTable.tsx`), the CSV/bulk-upload UI, and the ~15 remaining
+  identical mutation handlers — add coverage when those areas next change.
 
 ## Medium
 
@@ -108,9 +115,8 @@ why it matters, and a checkbox. Spec for the first batch of work:
 - [ ] **`ClubRecordBrowser.handleListChange` unguarded async** — rapid list
   switching can race (last-resolved fetch wins, not last-selected).
   Pre-existing; add an `AbortController`/request-id guard when revisiting.
-- [ ] **Duplicated `makeChain` supabase test mock** — the same ~12-line
-  chainable Supabase mock is copy-pasted across 4 route test files
-  (`app/api/clubs/[slug]/route.test.ts`, `.../records/route.test.ts`,
-  `app/api/admin/club-level/route.test.ts`, `app/api/admin/upload/route.test.ts`).
-  Extract to a shared `lib/test/supabase-mock.ts` when next touching these
-  (rule-of-three exceeded).
+- [x] **Duplicated `makeChain` supabase test mock** — extracted to
+  `lib/test/supabase-mock.ts` (`makeChain`/`makeSupabase`/`pgError`, extended
+  for `rpc`/`auth`/`insert`/`update`/`delete` and an `Error`-rejects path for
+  simulating network throws); the 4 route test files now import it (−68 lines
+  of duplication), and it backs the new component/auth tests too.
