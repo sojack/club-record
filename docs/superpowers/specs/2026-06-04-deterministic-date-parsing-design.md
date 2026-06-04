@@ -57,8 +57,8 @@ fallback has no coverage.
 - Non-English month names.
 - Disambiguating numeric `D/M/Y` vs `M/D/Y` — left returned as-is (today's
   behavior; guessing is unsafe).
-- Full calendar validity (leap years, days-per-month) — only a 1–31 day range
-  check (enough to stop rollover).
+- Time-of-day / weekday parsing, or any format beyond the three month-name
+  patterns below.
 - Changing the lenient "unrecognized → return the trimmed string as-is"
   contract.
 
@@ -68,7 +68,7 @@ fallback has no coverage.
 |---|----------|--------|
 | D1 | Mechanism | Hand-rolled deterministic month-name parser; no `new Date`, no new dep |
 | D2 | Supported free-form formats | `MonthName YYYY`, `MonthName D[,] YYYY`, `D MonthName YYYY` (English, full + 3-letter abbrev, case-insensitive) |
-| D3 | Invalid/unrecognized input | Range-check day 1–31; on any failure return the trimmed string as-is (no rollover, no TZ shift) |
+| D3 | Invalid/unrecognized input | Validate the day against the month's real length (days-per-month, incl. leap-year February); on any failure return the trimmed string as-is (no rollover, no TZ shift, no impossible dates emitted) |
 
 ## Design
 
@@ -86,13 +86,15 @@ case-insensitive (lowercase the token).
 
 1. `^MONTH\s+(\d{4})$` → "March 2024" → `YYYY-MM` (month from the map).
 2. `^MONTH\s+(\d{1,2}),?\s+(\d{4})$` → "Mar 15, 2024" / "March 5 2024" →
-   `YYYY-MM-DD` (day = capture 1, range-checked 1–31).
+   `YYYY-MM-DD` (day validated against the month length).
 3. `^(\d{1,2})\s+MONTH\s+(\d{4})$` → "15 March 2024" → `YYYY-MM-DD`
-   (day range-checked 1–31).
+   (day validated against the month length).
 
 For matches: resolve the month via the map (so the month is always valid 1–12);
-zero-pad month and day; build the result string. If the month token is not in
-the map, or the day is outside 1–31, the pattern does not "win" → fall through.
+validate the day against `daysInMonth(year, month)` (a small lookup table with a
+leap-year case for February); zero-pad month and day; build the result string.
+If the month token is not in the map, or the day exceeds the month's real
+length, the pattern does not "win" → fall through.
 
 If no pattern matches (or a matched day is out of range), **return the trimmed
 string as-is** — identical to today's final `return trimmed;`.
@@ -117,8 +119,11 @@ in `lib/csv-parser.test.ts`. New cases assert exact outputs:
 - `"March 2024"` → `"2024-03"`; `"Mar 2024"` → `"2024-03"`.
 - `"Mar 15, 2024"` → `"2024-03-15"`; `"March 5 2024"` → `"2024-03-05"`.
 - `"15 March 2024"` → `"2024-03-15"`.
-- **No rollover:** `"Feb 30, 2024"` → `"Feb 30, 2024"` (returned as-is, NOT a
-  March date).
+- **No rollover / impossible day:** `"Feb 30, 2024"` → `"Feb 30, 2024"`
+  (returned as-is — NOT rolled to a March date, and NOT emitted as the
+  impossible `"2024-02-30"`).
+- **Leap year:** `"Feb 29, 2024"` → `"2024-02-29"` (2024 is a leap year);
+  `"Feb 29, 2023"` → `"Feb 29, 2023"` (as-is — 2023 is not).
 - **Unknown month:** `"Smarch 2024"` → `"Smarch 2024"` (as-is).
 - **Determinism:** because the implementation no longer calls `new Date`, the
   outputs are TZ-independent **by construction** — so the exact-value
