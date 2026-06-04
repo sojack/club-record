@@ -63,10 +63,17 @@ why it matters, and a checkbox. Spec for the first batch of work:
   (`dashboard/page`), `members`' `error→loadError`, the mutation pattern
   (`login`, `settings`), signup orphaned-account recovery, and the
   reset-password session guard (spec/plan
-  `docs/superpowers/{specs,plans}/2026-06-04-component-test-foundation.*`).
-  **Still uncovered:** the large editors (`records/[listId]/page.tsx`,
-  `components/RecordTable.tsx`), the CSV/bulk-upload UI, and the ~15 remaining
-  identical mutation handlers — add coverage when those areas next change.
+  `docs/superpowers/{specs,plans}/2026-06-04-component-test-foundation.*`). The
+  **large editors now have representative coverage too** (spec/plan
+  `docs/superpowers/{specs,plans}/2026-06-04-editor-test-coverage.*`):
+  `components/RecordTable.tsx` (save contract / empty-row filter, add/remove,
+  time entry, readOnly/relay/national-scope variants), the `[listId]` list
+  editor (load success / `LoadError` / not-found / delete-list wiring), and the
+  bulk-upload page (parse→preview, upload wiring, no-valid guard). Suite is 107
+  tests. **Still uncovered:** RecordTable's flag-menu / history-edit / `moveRow`
+  / `breakRecord` / standard-events paths, the ~15 remaining identical mutation
+  handlers, and a future safety-netted RecordTable refactor (extract its pure
+  logic) — add when those areas next change.
 
 ## Medium
 
