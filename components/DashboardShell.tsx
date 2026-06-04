@@ -14,10 +14,12 @@ interface DashboardShellProps {
 export default function DashboardShell({ children, clubs, isAdmin }: DashboardShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Persist collapsed state to localStorage
+  // Client-only hydration: restore the collapsed state from localStorage on
+  // mount. Intentional setState-in-effect — no SSR-safe lazy-init alternative.
   useEffect(() => {
     const stored = localStorage.getItem("sidebarCollapsed");
     if (stored !== null) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSidebarCollapsed(stored === "true");
     }
   }, []);

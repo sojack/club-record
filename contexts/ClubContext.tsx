@@ -30,12 +30,15 @@ export function ClubProvider({ children, clubs, isAdmin = false }: ClubProviderP
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // On mount, try to restore selected club from localStorage
+    // Client-only hydration: restore the selected club from localStorage on
+    // mount (and when the clubs prop changes). Intentional setState-in-effect —
+    // there is no SSR-safe lazy-init alternative for a localStorage read.
     const savedClubId = localStorage.getItem(SELECTED_CLUB_KEY);
 
     if (savedClubId) {
       const savedClub = clubs.find((c) => c.id === savedClubId);
       if (savedClub) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectedClubState(savedClub);
       } else {
         // Saved club no longer exists, select first club
