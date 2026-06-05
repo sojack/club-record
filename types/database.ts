@@ -42,6 +42,11 @@ export interface RecordList {
   updated_at: string;  // DB-managed: set on insert, bumped by trigger on edit
 }
 
+export interface SplitTime {
+  distance: number; // cumulative metres, e.g. 50, 100, 150
+  ms: number;       // cumulative time in milliseconds
+}
+
 export interface SwimRecord {
   id: string;
   record_list_id: string;
@@ -56,6 +61,7 @@ export interface SwimRecord {
   province: string | null;
   record_date: string | null;
   location: string | null;
+  split_times: SplitTime[] | null;
   sort_order: number;
   is_national: boolean;
   is_current_national: boolean;

@@ -20,6 +20,7 @@ function rec(overrides: Partial<SwimRecord> = {}): SwimRecord {
     province: null,
     record_date: null,
     location: null,
+    split_times: null,
     sort_order: 0,
     is_national: false,
     is_current_national: false,
