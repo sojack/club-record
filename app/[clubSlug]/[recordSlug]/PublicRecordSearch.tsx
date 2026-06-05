@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import type { SwimRecord } from "@/types/database";
 import { formatMsToTime } from "@/lib/time-utils";
 import RecordFlags, { RecordFlagsLegend } from "@/components/RecordFlags";
+import { buildStrokeSections } from "@/lib/stroke-grouping";
 
 interface PublicRecordSearchProps {
   records: SwimRecord[];
@@ -99,33 +100,13 @@ export default function PublicRecordSearch({
     );
   });
 
-  const grouped =
-    recordType === "individual" &&
+  // Individual lists group under stroke headers; relays keep the flat layout.
+  const strokeGrouped = recordType === "individual";
+  // National/provincial individual lists also have age-band headers.
+  const hasBands =
+    strokeGrouped &&
     currentRecords.some((r) => r.age_group && r.age_group.trim() !== "");
-
-  const ageBandKey = (band: string | null): number => {
-    if (!band) return Number.MAX_SAFE_INTEGER;
-    const m = band.match(/\d+/);
-    return m ? parseInt(m[0], 10) : Number.MAX_SAFE_INTEGER;
-  };
-
-  const groupedBands: Array<{ band: string; records: SwimRecord[] }> = (() => {
-    if (!grouped) return [];
-    const byBand = new Map<string, SwimRecord[]>();
-    for (const r of filteredRecords) {
-      const b = (r.age_group && r.age_group.trim()) || "—";
-      const arr = byBand.get(b) || [];
-      arr.push(r);
-      byBand.set(b, arr);
-    }
-    return Array.from(byBand.entries())
-      .sort(
-        (a, b) =>
-          ageBandKey(a[0] === "—" ? null : a[0]) -
-          ageBandKey(b[0] === "—" ? null : b[0])
-      )
-      .map(([band, recs]) => ({ band, records: recs }));
-  })();
+  const sections = buildStrokeSections(filteredRecords, hasBands);
 
   const desktopColSpan = 5 + (isRelay ? 1 : 0) + (showHolderClub ? 1 : 0) + (showProvince ? 1 : 0);
 
@@ -371,18 +352,40 @@ export default function PublicRecordSearch({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {grouped
-                ? groupedBands.map((g) => (
-                    <React.Fragment key={`band-${g.band}`}>
-                      <tr className="bg-gray-800 dark:bg-gray-900">
-                        <td
-                          colSpan={desktopColSpan}
-                          className="px-4 py-3 text-lg font-bold tracking-wide text-white dark:text-gray-100"
+              {strokeGrouped
+                ? sections.map((section) => (
+                    <React.Fragment
+                      key={`section-${section.band ?? "all"}`}
+                    >
+                      {section.band !== null && (
+                        <tr className="bg-gray-800 dark:bg-gray-900">
+                          <td
+                            colSpan={desktopColSpan}
+                            className="px-4 py-3 text-lg font-bold tracking-wide text-white dark:text-gray-100"
+                          >
+                            {section.band}
+                          </td>
+                        </tr>
+                      )}
+                      {section.strokeGroups.map((g) => (
+                        <React.Fragment
+                          key={`stroke-${section.band ?? "all"}-${g.stroke.key}`}
                         >
-                          {g.band}
-                        </td>
-                      </tr>
-                      {g.records.map((record) => renderDesktopRecord(record))}
+                          <tr className="bg-gray-100 dark:bg-gray-700/50">
+                            <td
+                              colSpan={desktopColSpan}
+                              className={`${
+                                section.band !== null ? "pl-8" : "pl-4"
+                              } pr-4 py-2 font-semibold text-gray-700 dark:text-gray-200`}
+                            >
+                              {g.stroke.label}
+                            </td>
+                          </tr>
+                          {g.records.map((record) =>
+                            renderDesktopRecord(record)
+                          )}
+                        </React.Fragment>
+                      ))}
                     </React.Fragment>
                   ))
                 : filteredRecords.map((record) => renderDesktopRecord(record))}
@@ -405,13 +408,32 @@ export default function PublicRecordSearch({
 
       {/* Mobile card view for smaller screens */}
       <div className="mt-6 space-y-3 md:hidden">
-        {grouped
-          ? groupedBands.map((g) => (
-              <div key={`mband-${g.band}`} className="space-y-3">
-                <div className="rounded-md bg-gray-800 px-3 py-2 text-lg font-bold tracking-wide text-white dark:bg-gray-900 dark:text-gray-100">
-                  {g.band}
-                </div>
-                {g.records.map((record) => renderMobileCard(record))}
+        {strokeGrouped
+          ? sections.map((section) => (
+              <div
+                key={`msection-${section.band ?? "all"}`}
+                className="space-y-3"
+              >
+                {section.band !== null && (
+                  <div className="rounded-md bg-gray-800 px-3 py-2 text-lg font-bold tracking-wide text-white dark:bg-gray-900 dark:text-gray-100">
+                    {section.band}
+                  </div>
+                )}
+                {section.strokeGroups.map((g) => (
+                  <div
+                    key={`mstroke-${section.band ?? "all"}-${g.stroke.key}`}
+                    className="space-y-3"
+                  >
+                    <div
+                      className={`rounded-md bg-gray-100 px-3 py-2 font-semibold text-gray-700 dark:bg-gray-700/50 dark:text-gray-200 ${
+                        section.band !== null ? "ml-4" : ""
+                      }`}
+                    >
+                      {g.stroke.label}
+                    </div>
+                    {g.records.map((record) => renderMobileCard(record))}
+                  </div>
+                ))}
               </div>
             ))
           : filteredRecords.map((record) => renderMobileCard(record))}
