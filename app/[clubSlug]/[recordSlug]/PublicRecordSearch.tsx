@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import type { SwimRecord } from "@/types/database";
 import { formatMsToTime } from "@/lib/time-utils";
 import RecordFlags, { RecordFlagsLegend } from "@/components/RecordFlags";
+import { splitRows } from "@/lib/split-utils";
 import { buildStrokeSections } from "@/lib/stroke-grouping";
 
 interface PublicRecordSearchProps {
@@ -114,17 +115,18 @@ export default function PublicRecordSearch({
     const hasHistory = historyByRecordId.has(record.id);
     const isExpanded = expandedHistory.has(record.id);
     const history = historyByRecordId.get(record.id) || [];
+    const hasSplits = (record.split_times?.length ?? 0) > 0;
     return (
       <React.Fragment key={record.id}>
         <tr>
           <td className="px-4 py-3 text-gray-900 dark:text-white">
             <span className="flex items-center gap-2">
-              {hasHistory && (
+              {(hasHistory || hasSplits) && (
                 <button
                   type="button"
                   onClick={() => toggleHistory(record.id)}
                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  title={isExpanded ? "Hide history" : "Show previous records"}
+                  title={isExpanded ? "Hide details" : "Show splits / previous records"}
                 >
                   {isExpanded ? "▼" : "▶"}
                 </button>
@@ -169,6 +171,26 @@ export default function PublicRecordSearch({
             {record.location || "-"}
           </td>
         </tr>
+        {isExpanded && hasSplits && (
+          <tr className="bg-blue-50/40 dark:bg-blue-900/10">
+            <td colSpan={desktopColSpan} className="px-4 py-2">
+              <div className="ml-6 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+                <span className="font-medium text-gray-500 dark:text-gray-400">Splits</span>
+                {splitRows(record.split_times!).map((s) => (
+                  <span key={s.distance} className="text-gray-700 dark:text-gray-300">
+                    <span className="text-gray-400">{s.distance}m</span>{" "}
+                    <span className="font-mono">{formatTime(s.cumulativeMs)}</span>
+                    {s.distance !== splitRows(record.split_times!)[0].distance && (
+                      <span className="ml-1 font-mono text-gray-400">
+                        (+{formatTime(s.deltaMs)})
+                      </span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </td>
+          </tr>
+        )}
         {isExpanded && history.map((historyRecord) => (
           <tr
             key={historyRecord.id}
@@ -219,12 +241,13 @@ export default function PublicRecordSearch({
     const hasHistory = historyByRecordId.has(record.id);
     const isExpanded = expandedHistory.has(record.id);
     const history = historyByRecordId.get(record.id) || [];
+    const hasSplits = (record.split_times?.length ?? 0) > 0;
     return (
       <div key={`mobile-${record.id}`}>
         <div className="rounded-lg bg-white p-4 shadow-sm dark:bg-gray-800">
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-2 font-medium text-gray-900 dark:text-white">
-              {hasHistory && (
+              {(hasHistory || hasSplits) && (
                 <button
                   type="button"
                   onClick={() => toggleHistory(record.id)}
@@ -264,6 +287,22 @@ export default function PublicRecordSearch({
             </div>
           )}
         </div>
+        {isExpanded && hasSplits && (
+          <div className="ml-4 mt-1 rounded-lg bg-blue-50/40 p-3 dark:bg-blue-900/10">
+            <div className="mb-1 text-xs font-medium text-gray-500 dark:text-gray-400">Splits</div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+              {splitRows(record.split_times!).map((s, i) => (
+                <span key={s.distance} className="text-gray-700 dark:text-gray-300">
+                  <span className="text-gray-400">{s.distance}m</span>{" "}
+                  <span className="font-mono">{formatTime(s.cumulativeMs)}</span>
+                  {i > 0 && (
+                    <span className="ml-1 font-mono text-gray-400">(+{formatTime(s.deltaMs)})</span>
+                  )}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
         {isExpanded && history.map((historyRecord) => (
           <div
             key={`mobile-history-${historyRecord.id}`}

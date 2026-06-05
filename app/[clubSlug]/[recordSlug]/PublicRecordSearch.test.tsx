@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { SwimRecord } from "@/types/database";
 import PublicRecordSearch from "./PublicRecordSearch";
 
@@ -65,5 +66,47 @@ describe("PublicRecordSearch stroke headers", () => {
       />
     );
     expect(screen.queryByText("Freestyle")).toBeNull();
+  });
+});
+
+describe("PublicRecordSearch splits", () => {
+  it("expands to show split cumulative + delta", async () => {
+    const user = userEvent.setup();
+    render(
+      <PublicRecordSearch
+        records={[
+          rec({
+            id: "s1",
+            event_name: "100 Free",
+            swimmer_name: "Jane Doe",
+            split_times: [
+              { distance: 50, ms: 29100 },
+              { distance: 100, ms: 62780 },
+            ],
+          }),
+        ]}
+        recordType="individual"
+        scope="club"
+      />
+    );
+    // Expander present because the record has splits (desktop + mobile = 2)
+    const toggles = screen.getAllByTitle("Show splits / previous records");
+    expect(toggles.length).toBeGreaterThan(0);
+    await user.click(toggles[0]);
+    expect(screen.getAllByText("Splits").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("50m").length).toBeGreaterThan(0);
+    // delta for the 2nd split: 62780-29100 = 33680ms -> "33.68"
+    expect(screen.getAllByText("(+33.68)").length).toBeGreaterThan(0);
+  });
+
+  it("shows no expander when a record has neither history nor splits", () => {
+    render(
+      <PublicRecordSearch
+        records={[rec({ id: "plain", event_name: "50 Free", swimmer_name: "No Splits" })]}
+        recordType="individual"
+        scope="club"
+      />
+    );
+    expect(screen.queryByTitle("Show splits / previous records")).toBeNull();
   });
 });
