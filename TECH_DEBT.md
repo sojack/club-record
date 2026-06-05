@@ -79,11 +79,17 @@ why it matters, and a checkbox. Spec for the first batch of work:
   `components/RecordTable.tsx` (save contract / empty-row filter, add/remove,
   time entry, readOnly/relay/national-scope variants), the `[listId]` list
   editor (load success / `LoadError` / not-found / delete-list wiring), and the
-  bulk-upload page (parse→preview, upload wiring, no-valid guard). Suite is 107
-  tests. **Still uncovered:** RecordTable's flag-menu / history-edit / `moveRow`
-  / `breakRecord` / standard-events paths, the ~15 remaining identical mutation
-  handlers, and a future safety-netted RecordTable refactor (extract its pure
-  logic) — add when those areas next change.
+  bulk-upload page (parse→preview, upload wiring, no-valid guard). RecordTable's
+  **pure logic is now extracted to `lib/record-table-utils.ts` and directly
+  unit-tested** (builders incl. `makeBreakingRecord`/`buildStandardEventRows`,
+  the save filter, history map, history-flag updates, column config, age-group
+  options, `reorderRecords`) — spec/plan
+  `docs/superpowers/{specs,plans}/2026-06-04-recordtable-extract-pure-logic.*`,
+  which also covers the previously-deferred break/standard-events/reorder
+  *logic*. Suite is 126 tests. **Still uncovered:** the flag-menu / history-edit
+  / cell-edit *rendering* in RecordTable, the ~15 remaining identical mutation
+  handlers, and a future JSX sub-component split of RecordTable — add when those
+  areas next change.
 
 ## Medium
 
