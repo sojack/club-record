@@ -3,6 +3,7 @@ import {
   detectStroke,
   groupRecordsByStroke,
   buildStrokeSections,
+  ageBandKey,
 } from "./stroke-grouping";
 import type { SwimRecord } from "@/types/database";
 
@@ -76,6 +77,28 @@ describe("groupRecordsByStroke", () => {
     const groups = groupRecordsByStroke([rec({ event_name: "50 Fly" })]);
     expect(groups).toHaveLength(1);
     expect(groups[0].stroke.label).toBe("Butterfly");
+  });
+
+  it("keeps unrecognized events in a trailing Other group (never dropped)", () => {
+    const groups = groupRecordsByStroke([
+      rec({ id: "kick", event_name: "50 Kick" }),
+      rec({ id: "free", event_name: "50 Free" }),
+    ]);
+    expect(groups.map((g) => g.stroke.label)).toEqual(["Freestyle", "Other"]);
+    expect(groups[1].records.map((r) => r.id)).toEqual(["kick"]);
+  });
+});
+
+describe("ageBandKey", () => {
+  it("uses the first numeric value in the band label", () => {
+    expect(ageBandKey("100-199")).toBe(100);
+    expect(ageBandKey("18-24")).toBe(18);
+    expect(ageBandKey("65+")).toBe(65);
+  });
+
+  it("sorts blank or non-numeric bands last", () => {
+    expect(ageBandKey(null)).toBe(Number.MAX_SAFE_INTEGER);
+    expect(ageBandKey("Open")).toBe(Number.MAX_SAFE_INTEGER);
   });
 });
 

@@ -27,6 +27,9 @@ export const STROKE_ORDER: StrokeInfo[] = [
 
 const STROKE_OTHER: StrokeInfo = { key: "other", label: "Other", order: 6 };
 
+// Header shown for records with no age group; also the map key for that bucket.
+export const BLANK_BAND = "—";
+
 // Order of checks matters so e.g. "Backstroke" never matches "free".
 export function detectStroke(eventName: string): StrokeInfo {
   const s = (eventName || "").toLowerCase();
@@ -70,7 +73,7 @@ export function buildStrokeSections(
   }
   const byBand = new Map<string, SwimRecord[]>();
   for (const r of records) {
-    const band = (r.age_group && r.age_group.trim()) || "—";
+    const band = (r.age_group && r.age_group.trim()) || BLANK_BAND;
     const arr = byBand.get(band) || [];
     arr.push(r);
     byBand.set(band, arr);
@@ -78,8 +81,8 @@ export function buildStrokeSections(
   return Array.from(byBand.entries())
     .sort(
       (a, b) =>
-        ageBandKey(a[0] === "—" ? null : a[0]) -
-        ageBandKey(b[0] === "—" ? null : b[0])
+        ageBandKey(a[0] === BLANK_BAND ? null : a[0]) -
+        ageBandKey(b[0] === BLANK_BAND ? null : b[0])
     )
     .map(([band, recs]) => ({ band, strokeGroups: groupRecordsByStroke(recs) }));
 }
