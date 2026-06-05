@@ -244,9 +244,10 @@ export function parseRecordsCSV(
     const carriesProvince = scope === "national";
 
     if (isRelay) {
-      if (!name2?.trim() || !name3?.trim() || !name4?.trim()) {
+      const presentLegs = [name2, name3, name4].filter((n) => n?.trim()).length;
+      if (presentLegs !== 0 && presentLegs !== 3) {
         errors.push(
-          `Row ${index + 2}: Relay records require all 4 swimmer names (Name1-Name4)`
+          `Row ${index + 2}: A relay needs all 4 swimmer names, or just the team name in leg 1 (Swimmer)`
         );
         return;
       }
@@ -288,9 +289,9 @@ export function parseRecordsCSV(
       event_name: event.trim(),
       time_ms,
       swimmer_name: swimmer.trim(),
-      swimmer_name_2: isRelay ? name2!.trim() : null,
-      swimmer_name_3: isRelay ? name3!.trim() : null,
-      swimmer_name_4: isRelay ? name4!.trim() : null,
+      swimmer_name_2: isRelay ? (name2?.trim() || null) : null,
+      swimmer_name_3: isRelay ? (name3?.trim() || null) : null,
+      swimmer_name_4: isRelay ? (name4?.trim() || null) : null,
       age_group: carriesAgeClub ? ageGroup!.trim() : null,
       record_club: carriesAgeClub ? recordClub!.trim() : null,
       province: carriesProvince ? province!.trim() : null,

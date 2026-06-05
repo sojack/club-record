@@ -69,7 +69,7 @@ describe("parseRecordsCSV — relay & scope", () => {
     const { records, errors } = parseRecordsCSV(csv, { relay: true });
     expect(records).toHaveLength(0);
     expect(errors).toContain(
-      "Row 2: Relay records require all 4 swimmer names (Name1-Name4)"
+      "Row 2: A relay needs all 4 swimmer names, or just the team name in leg 1 (Swimmer)"
     );
   });
 
@@ -127,6 +127,43 @@ describe("parseRecordsCSV — relay & scope", () => {
     });
     expect(records).toHaveLength(0);
     expect(errors).toContain("Row 2: Provincial records require a Club");
+  });
+});
+
+describe("parseRecordsCSV — relay club-team rule", () => {
+  it("accepts a club-team relay with only leg 1 (national scope)", () => {
+    const csv =
+      "Event,AgeGroup,Time,Swimmer,Club,Province\n" +
+      "4x50 Free,72-99,1:44.79,Penguin Masters,Penguin Masters,AB";
+    const { records, errors } = parseRecordsCSV(csv, { relay: true, scope: "national" });
+    expect(errors).toEqual([]);
+    expect(records).toHaveLength(1);
+    expect(records[0].swimmer_name).toBe("Penguin Masters");
+    expect(records[0].swimmer_name_2).toBeNull();
+    expect(records[0].swimmer_name_3).toBeNull();
+    expect(records[0].swimmer_name_4).toBeNull();
+    expect(records[0].record_club).toBe("Penguin Masters");
+  });
+
+  it("still accepts a full 4-swimmer relay", () => {
+    const csv =
+      "Event,AgeGroup,Time,Name1,Name2,Name3,Name4,Club,Province\n" +
+      "4x50 Free,72-99,1:44.79,A,B,C,D,Some Club,AB";
+    const { records, errors } = parseRecordsCSV(csv, { relay: true, scope: "national" });
+    expect(errors).toEqual([]);
+    expect(records).toHaveLength(1);
+    expect(records[0].swimmer_name).toBe("A");
+    expect(records[0].swimmer_name_2).toBe("B");
+    expect(records[0].swimmer_name_4).toBe("D");
+  });
+
+  it("rejects a partial relay (2 of 4 swimmers)", () => {
+    const csv =
+      "Event,AgeGroup,Time,Name1,Name2,Club,Province\n" +
+      "4x50 Free,72-99,1:44.79,A,B,Some Club,AB";
+    const { records, errors } = parseRecordsCSV(csv, { relay: true, scope: "national" });
+    expect(records).toHaveLength(0);
+    expect(errors.length).toBeGreaterThan(0);
   });
 });
 
