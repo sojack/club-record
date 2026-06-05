@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { formatMsToTime, parseTimeToMs, isValidTimeFormat } from "@/lib/time-utils";
+import { splitRows } from "@/lib/split-utils";
 import type { SwimRecord } from "@/types/database";
 import RecordFlags from "./RecordFlags";
 import {
@@ -297,6 +298,7 @@ export default function RecordTable({ records, onSave, onDelete, readOnly = fals
           <tbody>
             {editableRecords.map((record, index) => {
               const hasHistory = record.id ? (historyByRecordId.get(record.id)?.length ?? 0) > 0 : false;
+              const hasSplits = (record.split_times?.length ?? 0) > 0;
               const isExpanded = record.id ? expandedHistory.has(record.id) : false;
               const historyForRecord = record.id ? historyByRecordId.get(record.id) || [] : [];
               const isBreakingRecord = !!record._breakingRecordId;
@@ -311,12 +313,12 @@ export default function RecordTable({ records, onSave, onDelete, readOnly = fals
                     {!readOnly && (
                       <td className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
                         <div className="flex items-center gap-1">
-                          {hasHistory && (
+                          {(hasHistory || hasSplits) && (
                             <button
                               type="button"
                               onClick={() => record.id && toggleHistoryExpanded(record.id)}
                               className="mr-1 text-gray-400 hover:text-gray-600"
-                              title={isExpanded ? "Hide history" : "Show history"}
+                              title={isExpanded ? "Hide details" : "Show splits / history"}
                             >
                               {isExpanded ? "▼" : "▶"}
                             </button>
@@ -345,12 +347,12 @@ export default function RecordTable({ records, onSave, onDelete, readOnly = fals
                     <td className="px-3 py-2">
                       {readOnly ? (
                         <div className="flex items-center gap-2">
-                          {hasHistory && (
+                          {(hasHistory || hasSplits) && (
                             <button
                               type="button"
                               onClick={() => record.id && toggleHistoryExpanded(record.id)}
                               className="text-gray-400 hover:text-gray-600"
-                              title={isExpanded ? "Hide history" : "Show history"}
+                              title={isExpanded ? "Hide details" : "Show splits / history"}
                             >
                               {isExpanded ? "▼" : "▶"}
                             </button>
@@ -570,6 +572,27 @@ export default function RecordTable({ records, onSave, onDelete, readOnly = fals
                       </td>
                     )}
                   </tr>
+                  {isExpanded && hasSplits && (
+                    <tr className="border-t border-gray-100 bg-blue-50/40 dark:border-gray-800 dark:bg-blue-900/10">
+                      <td
+                        colSpan={(readOnly ? 7 : 8) + (showAgeGroup ? 1 : 0) + (showHolderClub ? 1 : 0) + (showProvince ? 1 : 0)}
+                        className="px-3 py-2"
+                      >
+                        <div className="ml-6 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+                          <span className="font-medium text-gray-500 dark:text-gray-400">Splits</span>
+                          {splitRows(record.split_times!).map((s, i) => (
+                            <span key={s.distance} className="text-gray-700 dark:text-gray-300">
+                              <span className="text-gray-400">{s.distance}m</span>{" "}
+                              <span className="font-mono">{formatMsToTime(s.cumulativeMs)}</span>
+                              {i > 0 && (
+                                <span className="ml-1 font-mono text-gray-400">(+{formatMsToTime(s.deltaMs)})</span>
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                   {/* History rows */}
                   {isExpanded && historyForRecord.map((historyRecord) => (
                     <tr
