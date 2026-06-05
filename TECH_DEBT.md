@@ -52,6 +52,16 @@ why it matters, and a checkbox. Spec for the first batch of work:
   async reads, not a net improvement). `npm run lint` now passes with
   `eslint . --max-warnings 0` (exit 0, 0 problems); `continue-on-error` removed
   from `.github/workflows/ci.yml` — lint is a hard CI gate.
+- [x] **B4 — deterministic free-form date parsing** — `normalizeDate`'s
+  `new Date(trimmed)` fallback (timezone/engine-dependent, and silently rolled
+  impossible days like "Feb 30" into the next month) was replaced with a
+  deterministic English month-name parser (`MONTHS` map + `daysInMonth` +
+  `parseMonthNameDate`) in `lib/csv-parser.ts` — no `new Date`. Free-form dates
+  ("March 2024", "Mar 15, 2024", "15 March 2024") normalize TZ-independently;
+  impossible/invalid days and unknown month names return the input as-is instead
+  of being silently corrupted. Covered by new `csv-parser` tests (incl.
+  leap-year February). Spec/plan
+  `docs/superpowers/{specs,plans}/2026-06-04-deterministic-date-parsing.*`.
 
 ## High
 
@@ -86,12 +96,6 @@ why it matters, and a checkbox. Spec for the first batch of work:
 - [ ] **Untested complexity hotspots** — `components/RecordTable.tsx` (~892
   LOC) and `app/(dashboard)/dashboard/records/[listId]/page.tsx` (~556 LOC)
   carry validation/mutation logic with no safety net for refactoring.
-- [ ] **B4 — `normalizeDate` timezone-dependent fallback** — in
-  `lib/csv-parser.ts`, the `new Date(trimmed)` fallback for free-form dates
-  (e.g. `"Mar 15, 2024"`) can shift the day depending on the runtime
-  timezone. Needs a deterministic date parser; not fixed in the first batch
-  because a date-parsing rewrite is its own task.
-
 ## Low
 
 - [ ] **Public records API: CORS `*` with no rate limiting**
