@@ -201,3 +201,28 @@ describe("parseRecordsCSV — free-form month-name dates", () => {
     expect(dateOf("Smarch 2024")).toBe("Smarch 2024");
   });
 });
+
+describe("parseRecordsCSV splits", () => {
+  it("parses a Splits column into split_times", () => {
+    const csv = "Event,Time,Swimmer,Splits\n100 Free,1:02.78,Jane Doe,50=29.10;100=1:02.78\n";
+    const { records, errors } = parseRecordsCSV(csv);
+    expect(errors).toEqual([]);
+    expect(records[0].split_times).toEqual([
+      { distance: 50, ms: 29100 },
+      { distance: 100, ms: 62780 },
+    ]);
+  });
+
+  it("sets split_times null when no Splits column", () => {
+    const csv = "Event,Time,Swimmer\n50 Free,29.10,Jane Doe\n";
+    const { records } = parseRecordsCSV(csv);
+    expect(records[0].split_times).toBeNull();
+  });
+
+  it("reports a row error and skips the record on malformed splits", () => {
+    const csv = "Event,Time,Swimmer,Splits\n100 Free,1:02.78,Jane Doe,garbage\n";
+    const { records, errors } = parseRecordsCSV(csv);
+    expect(records).toHaveLength(0);
+    expect(errors[0]).toMatch(/Row 2:.*Malformed split/);
+  });
+});

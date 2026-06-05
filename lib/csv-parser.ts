@@ -1,5 +1,7 @@
 import Papa from "papaparse";
 import { parseTimeToMs } from "./time-utils";
+import { parseSplitsColumn } from "./split-utils";
+import type { SplitTime } from "@/types/database";
 
 const MONTHS: Record<string, number> = {
   jan: 1, january: 1, feb: 2, february: 2, mar: 3, march: 3,
@@ -112,6 +114,7 @@ export interface CSVRecord {
   province: string | null;
   record_date: string | null;
   location: string | null;
+  split_times: SplitTime[] | null;
   is_national: boolean;
   is_current_national: boolean;
   is_provincial: boolean;
@@ -180,6 +183,7 @@ export function parseRecordsCSV(
     age_group: ["agegroup", "age_group", "age group", "age"],
     record_club: ["club", "record_club", "team"],
     province: ["province", "prov", "state"],
+    splits: ["splits", "split_times"],
   };
 
   const parseBoolean = (value: string | undefined): boolean => {
@@ -219,6 +223,14 @@ export function parseRecordsCSV(
     const ageGroup = findColumn(row, columnMaps.age_group);
     const recordClub = findColumn(row, columnMaps.record_club);
     const province = findColumn(row, columnMaps.province);
+    const splitsRaw = findColumn(row, columnMaps.splits);
+    let split_times: SplitTime[] | null;
+    try {
+      split_times = parseSplitsColumn(splitsRaw);
+    } catch (e) {
+      errors.push(`Row ${index + 2}: ${(e as Error).message}`);
+      return;
+    }
 
     if (!event || !time || !swimmer) {
       errors.push(
@@ -297,6 +309,7 @@ export function parseRecordsCSV(
       province: carriesProvince ? province!.trim() : null,
       record_date: normalizeDate(date),
       location: location?.trim() || null,
+      split_times,
       is_national: parseBoolean(is_national),
       is_current_national: parseBoolean(is_current_national),
       is_provincial: parseBoolean(is_provincial),
