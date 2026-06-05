@@ -37,3 +37,19 @@ export function detectStroke(eventName: string): StrokeInfo {
   if (s.includes("free")) return STROKE_ORDER[0];
   return STROKE_OTHER;
 }
+
+export function groupRecordsByStroke(records: SwimRecord[]): StrokeGroup[] {
+  const byKey = new Map<string, StrokeGroup>();
+  for (const record of records) {
+    const stroke = detectStroke(record.event_name);
+    const existing = byKey.get(stroke.key);
+    if (existing) {
+      existing.records.push(record);
+    } else {
+      byKey.set(stroke.key, { stroke, records: [record] });
+    }
+  }
+  return Array.from(byKey.values()).sort(
+    (a, b) => a.stroke.order - b.stroke.order
+  );
+}
