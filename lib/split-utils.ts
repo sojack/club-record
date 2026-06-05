@@ -23,6 +23,8 @@ export function parseSplitsColumn(raw: string | undefined): SplitTime[] | null {
     if (!Number.isInteger(distance) || distance <= 0) {
       throw new Error(`Invalid split distance "${distStr}"`);
     }
+    // parseTimeToMs returns 0 for unparseable input; a real cumulative split is
+    // never 0, so we treat 0 as the malformed-time sentinel.
     const ms = parseTimeToMs(timeStr);
     if (ms === 0) {
       throw new Error(`Invalid split time "${timeStr}"`);

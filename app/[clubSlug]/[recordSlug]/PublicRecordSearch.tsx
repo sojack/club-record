@@ -176,11 +176,11 @@ export default function PublicRecordSearch({
             <td colSpan={desktopColSpan} className="px-4 py-2">
               <div className="ml-6 flex flex-wrap gap-x-6 gap-y-1 text-sm">
                 <span className="font-medium text-gray-500 dark:text-gray-400">Splits</span>
-                {splitRows(record.split_times!).map((s) => (
+                {splitRows(record.split_times!).map((s, i) => (
                   <span key={s.distance} className="text-gray-700 dark:text-gray-300">
                     <span className="text-gray-400">{s.distance}m</span>{" "}
                     <span className="font-mono">{formatTime(s.cumulativeMs)}</span>
-                    {s.distance !== splitRows(record.split_times!)[0].distance && (
+                    {i > 0 && (
                       <span className="ml-1 font-mono text-gray-400">
                         (+{formatTime(s.deltaMs)})
                       </span>
