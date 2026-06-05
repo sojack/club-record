@@ -53,3 +53,33 @@ export function groupRecordsByStroke(records: SwimRecord[]): StrokeGroup[] {
     (a, b) => a.stroke.order - b.stroke.order
   );
 }
+
+// First numeric value in a band label drives ascending order; blank/none last.
+export function ageBandKey(band: string | null): number {
+  if (!band) return Number.MAX_SAFE_INTEGER;
+  const m = band.match(/\d+/);
+  return m ? parseInt(m[0], 10) : Number.MAX_SAFE_INTEGER;
+}
+
+export function buildStrokeSections(
+  records: SwimRecord[],
+  hasBands: boolean
+): StrokeSection[] {
+  if (!hasBands) {
+    return [{ band: null, strokeGroups: groupRecordsByStroke(records) }];
+  }
+  const byBand = new Map<string, SwimRecord[]>();
+  for (const r of records) {
+    const band = (r.age_group && r.age_group.trim()) || "—";
+    const arr = byBand.get(band) || [];
+    arr.push(r);
+    byBand.set(band, arr);
+  }
+  return Array.from(byBand.entries())
+    .sort(
+      (a, b) =>
+        ageBandKey(a[0] === "—" ? null : a[0]) -
+        ageBandKey(b[0] === "—" ? null : b[0])
+    )
+    .map(([band, recs]) => ({ band, strokeGroups: groupRecordsByStroke(recs) }));
+}

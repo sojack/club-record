@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { detectStroke, groupRecordsByStroke } from "./stroke-grouping";
+import {
+  detectStroke,
+  groupRecordsByStroke,
+  buildStrokeSections,
+} from "./stroke-grouping";
 import type { SwimRecord } from "@/types/database";
 
 describe("detectStroke", () => {
@@ -72,5 +76,48 @@ describe("groupRecordsByStroke", () => {
     const groups = groupRecordsByStroke([rec({ event_name: "50 Fly" })]);
     expect(groups).toHaveLength(1);
     expect(groups[0].stroke.label).toBe("Butterfly");
+  });
+});
+
+describe("buildStrokeSections", () => {
+  it("returns a single null-band section when hasBands is false", () => {
+    const sections = buildStrokeSections(
+      [rec({ event_name: "50 Free" }), rec({ event_name: "100 Back" })],
+      false
+    );
+    expect(sections).toHaveLength(1);
+    expect(sections[0].band).toBeNull();
+    expect(sections[0].strokeGroups.map((g) => g.stroke.label)).toEqual([
+      "Freestyle",
+      "Backstroke",
+    ]);
+  });
+
+  it("groups by age band (numeric ascending) then stroke when hasBands is true", () => {
+    const sections = buildStrokeSections(
+      [
+        rec({ id: "a", event_name: "50 Free", age_group: "35-39" }),
+        rec({ id: "b", event_name: "50 Free", age_group: "18-24" }),
+        rec({ id: "c", event_name: "100 Back", age_group: "18-24" }),
+      ],
+      true
+    );
+    expect(sections.map((s) => s.band)).toEqual(["18-24", "35-39"]);
+    expect(sections[0].strokeGroups.map((g) => g.stroke.label)).toEqual([
+      "Freestyle",
+      "Backstroke",
+    ]);
+    expect(sections[1].strokeGroups).toHaveLength(1);
+  });
+
+  it("places blank age bands last", () => {
+    const sections = buildStrokeSections(
+      [
+        rec({ id: "blank", event_name: "50 Free", age_group: null }),
+        rec({ id: "young", event_name: "50 Free", age_group: "18-24" }),
+      ],
+      true
+    );
+    expect(sections.map((s) => s.band)).toEqual(["18-24", "—"]);
   });
 });
