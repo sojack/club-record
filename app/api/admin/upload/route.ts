@@ -88,6 +88,7 @@ export async function POST(request: NextRequest) {
         province: r.province,
         record_date: r.record_date,
         location: r.location,
+        split_times: r.split_times,
         sort_order: idx,
         is_national: r.is_national,
         is_current_national: r.is_current_national,

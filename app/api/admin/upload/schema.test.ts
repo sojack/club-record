@@ -79,6 +79,35 @@ describe("uploadSchema", () => {
     }
   });
 
+  it("keeps split_times through validation (regression: was stripped)", () => {
+    const r = uploadSchema.safeParse(
+      payload({
+        records: [
+          record({
+            split_times: [
+              { distance: 100, ms: 65330 },
+              { distance: 200, ms: 136520 },
+            ],
+          }),
+        ],
+      })
+    );
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.records[0].split_times).toEqual([
+        { distance: 100, ms: 65330 },
+        { distance: 200, ms: 136520 },
+      ]);
+    }
+  });
+
+  it("coerces missing or null split_times to null", () => {
+    const r1 = uploadSchema.safeParse(payload());
+    const r2 = uploadSchema.safeParse(payload({ records: [record({ split_times: null })] }));
+    expect(r1.success && r1.data.records[0].split_times).toBeNull();
+    expect(r2.success && r2.data.records[0].split_times).toBeNull();
+  });
+
   it("rejects an invalid courseType", () => {
     expect(uploadSchema.safeParse(payload({ courseType: "XXX" })).success).toBe(
       false

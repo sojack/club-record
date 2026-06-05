@@ -25,6 +25,10 @@ const recordSchema = z.object({
   is_split: z.boolean(),
   is_relay_split: z.boolean(),
   is_new: z.boolean(),
+  split_times: z
+    .array(z.object({ distance: z.number(), ms: z.number() }))
+    .nullish()
+    .transform((v) => v ?? null),
 });
 
 export const uploadSchema = z.object({
