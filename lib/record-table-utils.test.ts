@@ -62,6 +62,10 @@ describe("mapRecordToEditable", () => {
     expect(e.is_national).toBe(false);
     expect(e.is_current).toBe(true);
   });
+
+  it("preserves an explicit is_current=false (?? not ||)", () => {
+    expect(mapRecordToEditable(rec({ is_current: false })).is_current).toBe(false);
+  });
 });
 
 describe("makeEmptyRecord", () => {
