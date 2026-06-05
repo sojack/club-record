@@ -1,6 +1,65 @@
 import Papa from "papaparse";
 import { parseTimeToMs } from "./time-utils";
 
+const MONTHS: Record<string, number> = {
+  jan: 1, january: 1, feb: 2, february: 2, mar: 3, march: 3,
+  apr: 4, april: 4, may: 5, jun: 6, june: 6, jul: 7, july: 7,
+  aug: 8, august: 8, sep: 9, september: 9, oct: 10, october: 10,
+  nov: 11, november: 11, dec: 12, december: 12,
+};
+
+function daysInMonth(year: number, month: number): number {
+  if (month === 2) {
+    const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    return leap ? 29 : 28;
+  }
+  return [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
+}
+
+/**
+ * Deterministically parse English free-form month-name dates without `new Date`,
+ * so the result never depends on timezone and impossible days never roll over.
+ * Returns "YYYY-MM" / "YYYY-MM-DD", or null if `trimmed` is not a recognized
+ * month-name date.
+ */
+function parseMonthNameDate(trimmed: string): string | null {
+  const lower = trimmed.toLowerCase();
+  const pad = (n: number) => String(n).padStart(2, "0");
+
+  // "March 2024" / "Mar 2024" -> YYYY-MM
+  let m = lower.match(/^([a-z]+)\s+(\d{4})$/);
+  if (m) {
+    const month = MONTHS[m[1]];
+    return month ? `${m[2]}-${pad(month)}` : null;
+  }
+
+  // "Mar 15, 2024" / "March 5 2024" -> YYYY-MM-DD
+  m = lower.match(/^([a-z]+)\s+(\d{1,2}),?\s+(\d{4})$/);
+  if (m) {
+    const month = MONTHS[m[1]];
+    const day = Number(m[2]);
+    const year = Number(m[3]);
+    if (month && day >= 1 && day <= daysInMonth(year, month)) {
+      return `${m[3]}-${pad(month)}-${pad(day)}`;
+    }
+    return null;
+  }
+
+  // "15 March 2024" -> YYYY-MM-DD
+  m = lower.match(/^(\d{1,2})\s+([a-z]+)\s+(\d{4})$/);
+  if (m) {
+    const month = MONTHS[m[2]];
+    const day = Number(m[1]);
+    const year = Number(m[3]);
+    if (month && day >= 1 && day <= daysInMonth(year, month)) {
+      return `${m[3]}-${pad(month)}-${pad(day)}`;
+    }
+    return null;
+  }
+
+  return null;
+}
+
 /**
  * Normalize date strings to consistent format
  * Keeps partial dates as-is: "2024", "2024-03", "2024-03-15"
@@ -32,18 +91,10 @@ function normalizeDate(value: string | undefined): string | null {
     return `${year}-${month}-${day}`;
   }
 
-  // Try to parse other formats like "March 2024" or "Mar 15, 2024"
-  const parsed = new Date(trimmed);
-  if (!isNaN(parsed.getTime())) {
-    const year = parsed.getFullYear();
-    const month = String(parsed.getMonth() + 1).padStart(2, "0");
-    const day = String(parsed.getDate()).padStart(2, "0");
-    // If original didn't have a day, return year-month only
-    if (/^[a-zA-Z]+\s+\d{4}$/.test(trimmed)) {
-      return `${year}-${month}`;
-    }
-    return `${year}-${month}-${day}`;
-  }
+  // Free-form English month-name dates, parsed deterministically (no `new Date`,
+  // so no timezone shift and no silent rollover of impossible days).
+  const monthName = parseMonthNameDate(trimmed);
+  if (monthName) return monthName;
 
   // Return as-is if we can't parse
   return trimmed;

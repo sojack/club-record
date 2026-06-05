@@ -129,3 +129,38 @@ describe("parseRecordsCSV — relay & scope", () => {
     expect(errors).toContain("Row 2: Provincial records require a Club");
   });
 });
+
+describe("parseRecordsCSV — free-form month-name dates", () => {
+  function dateOf(dateField: string): string | null {
+    const csv = `Event,Time,Swimmer,Date\n50 Free,24.56,John Smith,${dateField}`;
+    const { records } = parseRecordsCSV(csv);
+    return records[0].record_date;
+  }
+
+  it("parses 'Month YYYY' to YYYY-MM", () => {
+    expect(dateOf("March 2024")).toBe("2024-03");
+    expect(dateOf("Mar 2024")).toBe("2024-03");
+  });
+
+  it("parses 'Month D, YYYY' to YYYY-MM-DD", () => {
+    expect(dateOf('"Mar 15, 2024"')).toBe("2024-03-15");
+    expect(dateOf("March 5 2024")).toBe("2024-03-05");
+  });
+
+  it("parses 'D Month YYYY' to YYYY-MM-DD", () => {
+    expect(dateOf("15 March 2024")).toBe("2024-03-15");
+  });
+
+  it("returns an impossible day as-is instead of rolling over", () => {
+    expect(dateOf('"Feb 30, 2024"')).toBe("Feb 30, 2024");
+  });
+
+  it("validates leap-year February", () => {
+    expect(dateOf('"Feb 29, 2024"')).toBe("2024-02-29");
+    expect(dateOf('"Feb 29, 2023"')).toBe("Feb 29, 2023");
+  });
+
+  it("returns an unknown month name as-is", () => {
+    expect(dateOf("Smarch 2024")).toBe("Smarch 2024");
+  });
+});
