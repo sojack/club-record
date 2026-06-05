@@ -4,19 +4,23 @@ import React, { useState, useRef, useEffect } from "react";
 import { formatMsToTime, parseTimeToMs, isValidTimeFormat } from "@/lib/time-utils";
 import type { SwimRecord } from "@/types/database";
 import RecordFlags from "./RecordFlags";
+import {
+  mapRecordToEditable,
+  makeEmptyRecord,
+  makeBreakingRecord,
+  buildStandardEventRows,
+  buildHistoryMap,
+  filterSavableRecords,
+  buildHistoryUpdates,
+  getColumnConfig,
+  computeAgeGroupOptions,
+  reorderRecords,
+  type EditableRecord,
+  type RecordFlagType,
+  type HistoryFlagUpdate,
+} from "@/lib/record-table-utils";
 
-interface EditableRecord extends Omit<SwimRecord, "id" | "created_at" | "updated_at" | "record_list_id"> {
-  id?: string;
-  isNew?: boolean;
-  _breakingRecordId?: string; // ID of the record this new record is breaking
-}
-
-export type RecordFlagType = "is_national" | "is_current_national" | "is_provincial" | "is_current_provincial" | "is_split" | "is_relay_split" | "is_new" | "is_world_record";
-
-export interface HistoryFlagUpdate {
-  id: string;
-  flags: Record<RecordFlagType, boolean>;
-}
+export type { EditableRecord, RecordFlagType, HistoryFlagUpdate };
 
 interface RecordTableProps {
   records: SwimRecord[];
@@ -30,83 +34,17 @@ interface RecordTableProps {
   relayEvents?: string[];
 }
 
-function getStandardEvents(courseType?: string): string[] {
-  const events = [
-    "50 Free", "100 Free", "200 Free", "400 Free", "800 Free", "1500 Free",
-    "50 Back", "100 Back", "200 Back",
-    "50 Breast", "100 Breast", "200 Breast",
-    "50 Fly", "100 Fly", "200 Fly",
-  ];
-  if (courseType !== "LCM") {
-    events.push("100 IM");
-  }
-  events.push("200 IM", "400 IM");
-  return events;
-}
-
 export default function RecordTable({ records, onSave, onDelete, readOnly = false, courseType, recordType = "individual", scope = "club", ageGroups = [], relayEvents = [] }: RecordTableProps) {
-  const isRelay = recordType === "relay";
-  const showHolderClub = scope !== "club";
-  const showProvince = scope === "national";
-  const showAgeGroup = isRelay || showHolderClub;
-  const ageGroupOptions = Array.from(
-    new Set([
-      ...ageGroups,
-      ...records
-        .map((r) => r.age_group)
-        .filter((a): a is string => !!a && a.trim() !== ""),
-    ])
-  );
+  const { isRelay, showHolderClub, showProvince, showAgeGroup } = getColumnConfig({
+    recordType,
+    scope,
+  });
+  const ageGroupOptions = computeAgeGroupOptions(ageGroups, records);
   // Separate current and history records
   const currentRecords = records.filter((r) => r.is_current !== false);
   const historyRecords = records.filter((r) => r.is_current === false);
 
-  // Build a map of record ID -> history records (records where superseded_by = this ID)
-  const historyByRecordId = new Map<string, SwimRecord[]>();
-  historyRecords.forEach((hr) => {
-    if (hr.superseded_by) {
-      const existing = historyByRecordId.get(hr.superseded_by) || [];
-      existing.push(hr);
-      historyByRecordId.set(hr.superseded_by, existing);
-    }
-  });
-
-  // Sort history by record_date descending (most recent first)
-  historyByRecordId.forEach((records, key) => {
-    records.sort((a, b) => {
-      if (!a.record_date && !b.record_date) return 0;
-      if (!a.record_date) return 1;
-      if (!b.record_date) return -1;
-      return b.record_date.localeCompare(a.record_date);
-    });
-    historyByRecordId.set(key, records);
-  });
-
-  const mapRecordToEditable = (r: SwimRecord): EditableRecord => ({
-    id: r.id,
-    event_name: r.event_name,
-    time_ms: r.time_ms,
-    swimmer_name: r.swimmer_name,
-    swimmer_name_2: r.swimmer_name_2,
-    swimmer_name_3: r.swimmer_name_3,
-    swimmer_name_4: r.swimmer_name_4,
-    age_group: r.age_group,
-    record_club: r.record_club,
-    province: r.province,
-    record_date: r.record_date,
-    location: r.location,
-    sort_order: r.sort_order,
-    is_national: r.is_national || false,
-    is_current_national: r.is_current_national || false,
-    is_provincial: r.is_provincial || false,
-    is_current_provincial: r.is_current_provincial || false,
-    is_split: r.is_split || false,
-    is_relay_split: r.is_relay_split || false,
-    is_new: r.is_new || false,
-    is_world_record: r.is_world_record || false,
-    superseded_by: r.superseded_by,
-    is_current: r.is_current ?? true,
-  });
+  const historyByRecordId = buildHistoryMap(records);
 
   const [editableRecords, setEditableRecords] = useState<EditableRecord[]>(
     currentRecords.map(mapRecordToEditable)
@@ -197,71 +135,15 @@ export default function RecordTable({ records, onSave, onDelete, readOnly = fals
   };
 
   const addRow = () => {
-    const newRecord: EditableRecord = {
-      event_name: "",
-      time_ms: 0,
-      swimmer_name: "",
-      swimmer_name_2: null,
-      swimmer_name_3: null,
-      swimmer_name_4: null,
-      age_group: null,
-      record_club: null,
-      province: null,
-      record_date: null,
-      location: null,
-      sort_order: editableRecords.length,
-      is_national: false,
-      is_current_national: false,
-      is_provincial: false,
-      is_current_provincial: false,
-      is_split: false,
-      is_relay_split: false,
-      is_new: false,
-      is_world_record: false,
-      superseded_by: null,
-      is_current: true,
-      isNew: true,
-    };
-    setEditableRecords([...editableRecords, newRecord]);
+    setEditableRecords([...editableRecords, makeEmptyRecord(editableRecords.length)]);
     setHasChanges(true);
   };
 
   const breakRecord = (index: number) => {
     const oldRecord = editableRecords[index];
     if (!oldRecord.id) return; // Can't break a new record
-
-    // Create a new record that will supersede the old one
-    const newRecord: EditableRecord = {
-      event_name: oldRecord.event_name,
-      time_ms: 0,
-      swimmer_name: "",
-      swimmer_name_2: null,
-      swimmer_name_3: null,
-      swimmer_name_4: null,
-      age_group: null,
-      record_club: null,
-      province: null,
-      record_date: null,
-      location: null,
-      sort_order: oldRecord.sort_order,
-      is_national: false,
-      is_current_national: false,
-      is_provincial: false,
-      is_current_provincial: false,
-      is_split: false,
-      is_relay_split: false,
-      is_new: true, // Mark as new record
-      is_world_record: false,
-      superseded_by: null,
-      is_current: true,
-      isNew: true,
-      _breakingRecordId: oldRecord.id, // Track which record this breaks
-    };
-
-    // Insert after the current record
     const newRecords = [...editableRecords];
-    newRecords.splice(index + 1, 0, newRecord);
-
+    newRecords.splice(index + 1, 0, makeBreakingRecord(oldRecord));
     setEditableRecords(newRecords);
     setHasChanges(true);
   };
@@ -287,43 +169,14 @@ export default function RecordTable({ records, onSave, onDelete, readOnly = fals
   };
 
   const addStandardEvents = () => {
-    const standardEvents = isRelay
-      ? relayEvents.flatMap((ev) => ageGroups.map((ag) => ({ event: ev, ageGroup: ag })))
-      : getStandardEvents(courseType).map((event) => ({ event, ageGroup: null as string | null }));
-    const existingKeys = new Set(
-      editableRecords.map((r) => `${r.event_name.toLowerCase()}|${r.age_group ?? ""}`)
-    );
-    const newPairs = standardEvents.filter(
-      ({ event, ageGroup }) =>
-        !existingKeys.has(`${event.toLowerCase()}|${ageGroup ?? ""}`)
-    );
-
-    const newRecords: EditableRecord[] = newPairs.map(({ event, ageGroup }, i) => ({
-      event_name: event,
-      time_ms: 0,
-      swimmer_name: "",
-      swimmer_name_2: null,
-      swimmer_name_3: null,
-      swimmer_name_4: null,
-      age_group: ageGroup,
-      record_club: null,
-      province: null,
-      record_date: null,
-      location: null,
-      sort_order: editableRecords.length + i,
-      is_national: false,
-      is_current_national: false,
-      is_provincial: false,
-      is_current_provincial: false,
-      is_split: false,
-      is_relay_split: false,
-      is_new: false,
-      is_world_record: false,
-      superseded_by: null,
-      is_current: true,
-      isNew: true,
-    }));
-
+    const newRecords = buildStandardEventRows({
+      isRelay,
+      courseType,
+      relayEvents,
+      ageGroups,
+      existing: editableRecords,
+      startSortOrder: editableRecords.length,
+    });
     setEditableRecords([...editableRecords, ...newRecords]);
     setHasChanges(true);
   };
@@ -331,28 +184,8 @@ export default function RecordTable({ records, onSave, onDelete, readOnly = fals
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Filter out empty rows
-      const validRecords = editableRecords.filter(
-        (r) => r.event_name.trim() !== ""
-      );
-
-      // Build history flag updates from editedHistoryRecords
-      const historyUpdates: HistoryFlagUpdate[] = Array.from(editedHistoryRecords.entries()).map(
-        ([id, record]) => ({
-          id,
-          flags: {
-            is_national: record.is_national || false,
-            is_current_national: record.is_current_national || false,
-            is_provincial: record.is_provincial || false,
-            is_current_provincial: record.is_current_provincial || false,
-            is_split: record.is_split || false,
-            is_relay_split: record.is_relay_split || false,
-            is_new: record.is_new || false,
-            is_world_record: record.is_world_record || false,
-          },
-        })
-      );
-
+      const validRecords = filterSavableRecords(editableRecords);
+      const historyUpdates = buildHistoryUpdates(editedHistoryRecords);
       await onSave(validRecords, historyUpdates.length > 0 ? historyUpdates : undefined);
       setHasChanges(false);
     } finally {
@@ -361,26 +194,9 @@ export default function RecordTable({ records, onSave, onDelete, readOnly = fals
   };
 
   const moveRow = (index: number, direction: "up" | "down") => {
-    if (
-      (direction === "up" && index === 0) ||
-      (direction === "down" && index === editableRecords.length - 1)
-    ) {
-      return;
-    }
-
-    const newRecords = [...editableRecords];
-    const targetIndex = direction === "up" ? index - 1 : index + 1;
-    [newRecords[index], newRecords[targetIndex]] = [
-      newRecords[targetIndex],
-      newRecords[index],
-    ];
-
-    // Update sort orders
-    newRecords.forEach((r, i) => {
-      r.sort_order = i;
-    });
-
-    setEditableRecords(newRecords);
+    const next = reorderRecords(editableRecords, index, direction);
+    if (next === editableRecords) return; // bounds no-op
+    setEditableRecords(next);
     setHasChanges(true);
   };
 
