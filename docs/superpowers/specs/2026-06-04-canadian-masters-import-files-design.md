@@ -1,149 +1,158 @@
-# Design: Canadian Masters records → app import files
+# Design: Canadian Masters individual records → app import files
 
 **Date:** 2026-06-04
 **Status:** Approved
-**Topic:** Transform the comprehensive Canadian Masters records Excel file
-(`SNC-new/Records-CAN.MS (1).xlsx`) into CSV files ready to upload through the
-app's bulk-upload importer, plus a review list of incomplete source rows.
+**Topic:** Transform the **individual** Canadian Masters records in
+`SNC-new/Records-CAN.MS (1).xlsx` into CSV files ready to bulk-upload to a
+national-level club. (Relay records are deferred — see Non-goals.)
 
 ## Context
 
-`SNC-new/Records-CAN.MS (1).xlsx` (one sheet, "Records") holds **1,407 Canadian
-Masters national records** — 1,145 individual + 262 relay — across COURSE
-(LCM/SCM) × GENDER (M/F; X=mixed on relays) × age band × stroke/distance, with
-swimmer/club/province(REGION)/meet-date and per-distance splits (splits are not
-imported).
+`SNC-new/Records-CAN.MS (1).xlsx` (sheet "Records") holds 1,407 Canadian Masters
+national records: 1,145 individual + 262 relay, across COURSE (LCM/SCM) ×
+GENDER × age band × stroke/distance, with swimmer/club/province(REGION)/
+meet-date and splits (splits not imported).
 
 The app's bulk-upload (`app/(dashboard)/dashboard/records/bulk-upload`) ingests
-one CSV per record list. `parseRecordsCSV` accepts flexible headers and these
-relevant columns: `Event`, `Time`, `Swimmer`/`Name1` (all required), `AgeGroup`,
-`Club`, `Province`, `Date`, `Location`, `Name2..4` (relay legs). `parseFilename`
-derives `courseType` (LCM/SCM/SCY substring), `gender` (mixed/women/men
-substring — "women" is matched before "men"), and `recordType` ("relay"
-substring) from the filename. **Scope is derived from the target club's level,
-not the file** — these records are national, so they upload to a national-level
-"Canadian Masters" club (national scope requires AgeGroup + Club + Province per
-record).
+one CSV per record list. `parseRecordsCSV` accepts flexible headers
+(`Event`, `Time`, `Swimmer` required; `AgeGroup`, `Club`, `Province`, `Date`,
+`Location` optional) and, **for national scope, REQUIRES non-empty `AgeGroup`,
+`Club`, AND `Province` per row** (`lib/csv-parser.ts:270-288`).
+`parseFilename` infers `courseType`/`gender`/`recordType` from the filename
+("women" matched before "men"). Scope comes from the **target club's level**, so
+these upload to a national-level "Canadian Masters" club.
 
-This task produces data deliverables only — **no app code changes**.
+This task produces data files only — **no app code changes**.
+
+### Why individual-only, and why drop the "Target Time" rows
+
+- **Relays** require all 4 swimmer names (`csv-parser.ts:246`), but the source
+  has only a club per relay. The user chose to support these as *club-team*
+  relay records, which needs an **app feature change** — a separate sub-project.
+  So relays are out of scope here; the 4 individual files don't depend on it.
+- **33 "Target Time" rows** (swimmer literally `"Target Time"`, time
+  `59:59.99`, blank club/province, only in the 90-94 / 95-99 bands) are
+  placeholders for bands with no record yet — not real records. They are
+  dropped (and would fail the national club/province requirement anyway).
 
 ## Goals
 
-1. 10 CSV files (4 individual + 6 relay), correctly named so the importer infers
-   the right course/gender/type, with columns the importer accepts.
-2. Faithful, deterministic field mapping from the Excel.
-3. A `_review.csv` listing every incomplete/odd source row (nothing dropped).
-4. Validation that every generated file parses through the app's
-   `parseRecordsCSV` with **0 errors** and the expected record count.
+1. 4 CSV files (LCM/SCM × Men/Women) of individual records, named so the
+   importer infers the right course/gender, with national-scope columns.
+2. Every real record imports — missing `Province` is filled with a placeholder
+   so the row is accepted (and flagged for later correction).
+3. A `_review.csv` listing every row that was dropped (Target Time) or
+   placeholdered (missing Province) or has a malformed age band.
+4. Validation: each file parses through the app's `parseRecordsCSV`
+   (`scope: "national"`) with **0 errors**, all rows becoming records.
 
 ## Non-goals
 
-- No app/importer code changes (use it as-is).
-- Not creating the "Canadian Masters" club / setting its level — a manual setup
-  step for the user (noted, not done).
+- **Relay records** — deferred until the club-team-relay app feature exists
+  (separate brainstorm/spec/PR), after which the 6 relay files are generated.
+- No app/importer code changes in this task.
+- Not creating the "Canadian Masters" club / setting its level (manual user
+  step).
 - Not importing splits, FINA/Rudolph points, birthdate, club code, nation,
   status.
-- Not inventing relay swimmer names (the source has none — see D1).
 
 ## Decisions (locked with the user)
 
 | # | Decision | Choice |
 |---|----------|--------|
-| D1 | Relay swimmers (source has only a club name per relay) | Club-team records: put `CLUBNAME` in both `Swimmer` (leg 1) and `Club`; legs 2–4 blank |
-| D2 | Individual swimmer name format | Reformat `"LASTNAME, Firstname"` → `"Firstname Lastname"`, title-cased (apostrophes/hyphens preserved) |
-| D3 | Incomplete/odd rows (43 blank Province; malformed age band `105/-1`) | Include all; also write `_review.csv` flagging them |
-| D4 | Output location & tooling | Files under `SNC-new/import/` (outside the git repo); a rerunnable stdlib Python generator |
+| D1 | Relays | Deferred to a separate club-team-relay feature; **not** in this task |
+| D2 | "Target Time" placeholder rows (33) | Dropped (not records); logged in `_review.csv` |
+| D3 | Missing Province on a real record | Fill with placeholder `"Unknown"` so it imports; log in `_review.csv` |
+| D4 | Individual swimmer name format | Reformat `"LASTNAME, Firstname"` → `"Firstname Lastname"`, smart-title-cased (apostrophes within-word, capitalize after space/hyphen/`(`) |
+| D5 | Malformed age band (`105/-1`, 2 rows) | Render `"105+"`; log in `_review.csv` |
+| D6 | Output & tooling | Files under `SNC-new/import/`; rerunnable stdlib Python generator |
 
 ## Design
 
 ### Output files (`SNC-new/import/`)
 
-Individual (gender M→Men, F→Women):
-`LCM Men.csv` (273), `LCM Women.csv` (279), `SCM Men.csv` (295),
-`SCM Women.csv` (298).
+| File | Records | Province-placeholdered |
+|------|---------|------------------------|
+| `LCM Men.csv` | 264 | 5 |
+| `LCM Women.csv` | 267 | 3 |
+| `SCM Men.csv` | 289 | 0 |
+| `SCM Women.csv` | 292 | 0 |
+| **total** | **1,112** | **8** |
 
-Relay (gender M→Men, F→Women, X→Mixed):
-`LCM Men Relay.csv` (41), `LCM Women Relay.csv` (40), `LCM Mixed Relay.csv` (44),
-`SCM Men Relay.csv` (45), `SCM Women Relay.csv` (45), `SCM Mixed Relay.csv` (47).
-
-Plus `_review.csv`. Counts are the expected per-file record totals (1,407 total).
+Plus `_review.csv`. (Counts are after dropping the 33 Target Time rows.)
 
 ### Column layout (every file)
 
-Header: `Event,AgeGroup,Time,Swimmer,Club,Province,Date,Location`
-(Relay legs 2–4 are omitted columns — the importer treats absent name2/3/4 as
-null.) Values are CSV-quoted when they contain commas (swimmer "LAST, First"
-becomes "First Last" so commas are rare, but club/meet names with commas are
-quoted).
+Header: `Event,AgeGroup,Time,Swimmer,Club,Province,Date,Location`.
+Values CSV-quoted when containing commas (the `csv` module handles this).
 
-### Field mapping
+### Field mapping (per data row, individual only)
+
+A row is **individual** iff `DISTANCE` has no `x`. **Skip** the row if
+`FULLNAME` (trimmed, case-insensitive) == `"target time"` (→ `_review.csv`,
+issue "target-time placeholder, dropped").
 
 | CSV column | Source → transform |
 |---|---|
-| `Event` | `DISTANCE` + " " + stroke name. `Fr→Free, Bk→Back, Br→Breast, Bu→Fly`. `Me→IM` for individuals, `Me→Medley` for relays. (e.g. `50 Free`, `200 IM`, `4x100 Medley`, `4x50 Free`) |
-| `AgeGroup` | `"{AGEMIN}-{AGEMAX}"`. If `AGEMAX` is missing/`-1`/`< AGEMIN`, render `"{AGEMIN}+"` and add to `_review.csv` |
-| `Time` | `SWIMTIME` verbatim (already `MM:SS.hh` / `SS.hh`) |
-| `Swimmer` | Individual: reformat `FULLNAME` per D2. Relay: `CLUBNAME` verbatim |
+| `Event` | `DISTANCE` + " " + stroke. `Fr→Free, Bk→Back, Br→Breast, Bu→Fly, Me→IM`. e.g. `50 Free`, `200 IM` |
+| `AgeGroup` | `"{AGEMIN}-{AGEMAX}"`; if `AGEMAX` missing/`-1`/`< AGEMIN` → `"{AGEMIN}+"` and flag |
+| `Time` | `SWIMTIME` verbatim (`MM:SS.hh` / `SS.hh`) |
+| `Swimmer` | `FULLNAME` reformatted (D4) |
 | `Club` | `CLUBNAME` verbatim |
-| `Province` | `REGION` (empty → empty cell; flagged in `_review.csv`) |
-| `Date` | `MEETDATE` (Excel serial, 1900 date system, epoch `1899-12-30`) → `YYYY-MM-DD`. Non-numeric/blank → empty |
-| `Location` | `MEETCITY`, but emit empty when value ∈ {`???`, `UNKNOWN`, ``} (case-insensitive) |
+| `Province` | `REGION`; if blank → `"Unknown"` (D3) and flag |
+| `Date` | `MEETDATE` Excel serial (epoch `1899-12-30`) → `YYYY-MM-DD`; non-numeric/blank → empty |
+| `Location` | `MEETCITY`, but empty when value ∈ {`???`, `UNKNOWN`, ``} (case-insensitive) |
 
-**Name reformat (D2):** split `FULLNAME` on the first comma into
-`last, first`; output `"{first} {last}"`; title-case each word
-(first letter upper, rest lower) while preserving characters after `'`, `-`,
-and inside `()` as word-internal (so `PRUD'HOMME, Marc → Marc Prud'homme`,
-`ST-PIERRE, Jean → Jean St-Pierre`, `HUDGELL (NEE PARKHOUSE), Jaynie →
-Jaynie Hudgell (Nee Parkhouse)`). A `FULLNAME` with no comma is title-cased
-as-is.
-
-**Row partitioning:** a row is **relay** iff `DISTANCE` contains `x`
-(e.g. `4x50`), else **individual**. Target file = `(COURSE, genderWord, type)`
-where genderWord = `{M:Men, F:Women, X:Mixed}`.
+**Name reformat (D4):** split `FULLNAME` on the first comma → `last`, `first`;
+output `"{first} {last}"`; capitalize the first alpha of each word where a word
+starts at string-start or after a space / `-` / `(` / `/`; lowercase the rest;
+do NOT capitalize after an apostrophe. So `MORIN, David → David Morin`,
+`PRUD'HOMME, Marc → Marc Prud'homme`, `ST-PIERRE, Jean → Jean St-Pierre`,
+`HUDGELL (NEE PARKHOUSE), Jaynie → Jaynie Hudgell (Nee Parkhouse)`. No comma →
+smart-title the whole string.
 
 ### `_review.csv`
 
-Header: `SourceRow,TargetFile,Issue,Event,AgeGroup,Swimmer,Club,Province,Date`.
-One row per source record that has a blank `Province` OR a malformed age band.
-`SourceRow` is the 1-based Excel row number (header is row 2, first data row 3)
-so the user can locate it. The record is STILL written to its target file — this
-is a fix-list, not a drop-list.
+Header: `SourceRow,Issue,TargetFile,Event,AgeGroup,Swimmer,Club,Province,Date`.
+One row per data row that is dropped (Target Time), province-placeholdered, or
+has a malformed age band. `SourceRow` is the 1-based Excel row number (header is
+row 2). For dropped rows `TargetFile` is empty. ~41 rows expected (33 dropped +
+8 placeholdered; the 2 malformed bands also appear).
 
-### Generator (D4)
+### Generator (D6)
 
 `SNC-new/generate_imports.py` — Python 3 stdlib only (`zipfile` +
-`xml.etree.ElementTree` to read the xlsx; `csv` to write). Deterministic, no
-network, no third-party packages. Rerunnable: it overwrites `SNC-new/import/*`.
-It prints a summary (per-file counts, review-row count) so a run is
-self-verifying at the count level.
+`xml.etree.ElementTree` to read the xlsx, `csv` to write). Deterministic, no
+network, no third-party packages. Rerunnable: overwrites `SNC-new/import/*`.
+Reads from `SNC-new/Records-CAN.MS (1).xlsx`. Prints per-file counts + review
+count.
 
 ### Validation
 
-A **throwaway Vitest test inside `club-record/`** (e.g.
-`lib/masters-import.validation.test.ts`) is the reliable validator — it runs in
-the existing toolchain that already resolves the `@/` alias and `papaparse`.
-It imports the app's `parseRecordsCSV`, reads each generated CSV from
-`SNC-new/import/` by **absolute path** (via Node `fs`), runs it with the correct
-`{ relay, scope: "national" }` flags, and asserts **0 parse errors** per file
-with the parsed record count equal to the generator's expected count (the table
-above). It is run once to confirm upload-readiness, then **deleted** (it depends
-on machine-local absolute paths to data outside the repo, so it is not committed
-as a permanent test).
+A **throwaway Vitest test inside `club-record/`**
+(`lib/masters-import.validation.test.ts`) is the validator (it runs in the
+toolchain that resolves `@/` and `papaparse`). It imports `parseRecordsCSV`,
+reads each generated CSV from `SNC-new/import/` by absolute path (`fs`), runs it
+with `{ relay: false, scope: "national" }`, and asserts **0 errors** and
+`records.length === (number of data rows in the file)`. Run once to confirm
+upload-readiness, then **deleted** (depends on machine-local absolute paths to
+data outside the repo — not committed).
 
 ## Verification
 
-1. `python3 SNC-new/generate_imports.py` → writes 10 CSVs + `_review.csv`;
-   printed per-file counts match the table above (totals 1,145 individual / 262
-   relay / 1,407).
-2. The validation harness → every file parses with 0 errors; parsed counts
-   equal the generator counts.
-3. Spot-check: open 2–3 files and confirm a known row (e.g. `LCM Men.csv` →
-   `50 Free,18-24,25.24,David Morin,C.N. Jonquiere,QC,2005-11-26,` and a relay
-   `LCM Men Relay.csv` → `4x50 Free,72-99,1:44.79,Penguin Masters Swimming,Penguin Masters Swimming,AB,2004-05-21,Edmonton`).
+1. `python3 SNC-new/generate_imports.py` → writes 4 CSVs + `_review.csv`;
+   printed counts match the table (1,112 total; 33 dropped; 8 placeholdered).
+2. Validation test → all 4 files: 0 errors, records == data-row count.
+3. Spot-check: `LCM Men.csv` contains
+   `50 Free,18-24,25.24,David Morin,C.N. Jonquiere,QC,2005-11-26,` and a
+   placeholdered row shows `Province = Unknown`.
 
-## Follow-ups (the user's manual steps, not this task)
+## Follow-ups (not this task)
 
-- Create/confirm a "Canadian Masters" club set to `level = national` in the app,
-  then bulk-upload the 10 files to it.
-- Optionally fix the `_review.csv` rows at source and regenerate.
+- The user creates/confirms a national-level "Canadian Masters" club, then
+  bulk-uploads the 4 files.
+- Fix the `_review.csv` rows at source (provinces, the 2 malformed bands) and
+  regenerate if desired.
+- **Club-team relay feature** (separate sub-project) → then generate the 6
+  relay files.
 </content>
