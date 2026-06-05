@@ -67,7 +67,7 @@ currently reads from props/state):
 | `buildHistoryUpdates` | `(edited: Map<string, SwimRecord>) => HistoryFlagUpdate[]` | `handleSave` history-flag mapping |
 | `getColumnConfig` | `(opts: { recordType: "individual"\|"relay"; scope: "club"\|"provincial"\|"national" }) => { isRelay: boolean; showHolderClub: boolean; showProvince: boolean; showAgeGroup: boolean }` | the `isRelay`/`showHolderClub`/`showProvince`/`showAgeGroup` derivation |
 | `computeAgeGroupOptions` | `(ageGroups: string[], records: SwimRecord[]) => string[]` | the `ageGroupOptions` derivation |
-| `reorderRecords` | `(records: EditableRecord[], index: number, direction: "up"\|"down") => EditableRecord[]` | `moveRow` body (returns a new array with reassigned `sort_order`; out-of-bounds → unchanged copy) |
+| `reorderRecords` | `(records: EditableRecord[], index: number, direction: "up"\|"down") => EditableRecord[]` | `moveRow` body (swap + reassign `sort_order`; on a bounds no-op returns the **same array reference** so the caller can skip the state update / `setHasChanges`) |
 
 All functions are pure: no React, no I/O, deterministic. `makeEmptyRecord` /
 `makeBreakingRecord` set the same field defaults as today (incl. `isNew: true`,
@@ -100,7 +100,8 @@ tests per helper, including the cases the RTL suite cannot easily reach:
 - `computeAgeGroupOptions`: union of `ageGroups` + record age groups, de-duped,
   blanks filtered.
 - `reorderRecords`: up/down swaps and `sort_order` reassignment; first-up and
-  last-down are no-ops (return an unchanged copy).
+  last-down return the same array reference (so the component skips the state
+  update and does not mark `hasChanges` — matching today's early-return).
 - `getStandardEvents`: LCM omits "100 IM"; SCM/SCY include it.
 
 The existing `components/RecordTable.test.tsx` is unchanged and must stay green
