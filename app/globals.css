@@ -1,18 +1,77 @@
 @import "tailwindcss";
 
-:root {
-  --foreground-rgb: 0, 0, 0;
-  --background-rgb: 255, 255, 255;
+/*
+ * "Deep Water & Gold" design system.
+ *
+ * The whole app styles itself with Tailwind's `gray-*` and `blue-*` scales,
+ * so the palette is rethemed at the token level: `gray` becomes a navy-tinted
+ * slate, `blue` becomes a deep marine blue, and a `gold` accent scale is added
+ * for record highlights. Any existing or future `gray-*`/`blue-*` utility
+ * automatically picks up the brand palette.
+ */
+@theme {
+  /* Navy-tinted neutrals (overrides Tailwind gray) */
+  --color-gray-50: #f6f8fb;
+  --color-gray-100: #edf1f7;
+  --color-gray-200: #dde4ef;
+  --color-gray-300: #c3cdde;
+  --color-gray-400: #93a2bb;
+  --color-gray-500: #64748e;
+  --color-gray-600: #475672;
+  --color-gray-700: #35435c;
+  --color-gray-800: #1f2b40;
+  --color-gray-900: #131e31;
+  --color-gray-950: #0a1120;
+
+  /* Deep marine blue (overrides Tailwind blue) */
+  --color-blue-50: #f0f6fb;
+  --color-blue-100: #e0ecf8;
+  --color-blue-200: #c3daf0;
+  --color-blue-300: #95bee3;
+  --color-blue-400: #5f9bd1;
+  --color-blue-500: #3a7cbd;
+  --color-blue-600: #2563a8;
+  --color-blue-700: #1f5089;
+  --color-blue-800: #1d426f;
+  --color-blue-900: #1b3a5e;
+  --color-blue-950: #122742;
+
+  /* Champagne gold accent — records are gold medals */
+  --color-gold-50: #fcf9f0;
+  --color-gold-100: #f8f0da;
+  --color-gold-200: #f0dfb0;
+  --color-gold-300: #e7c980;
+  --color-gold-400: #ddb155;
+  --color-gold-500: #cf9636;
+  --color-gold-600: #b67c28;
+  --color-gold-700: #925f22;
+  --color-gold-800: #774c21;
+  --color-gold-900: #62401f;
+  --color-gold-950: #382210;
+
+  /* Typography: Inter for body, Fraunces for display headings */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+
+  /* Softer, navy-tinted elevation */
+  --shadow-sm: 0 1px 2px rgb(10 17 32 / 0.05), 0 4px 16px -4px rgb(10 17 32 / 0.08);
+  --shadow-lg: 0 2px 8px -2px rgb(10 17 32 / 0.08), 0 12px 32px -8px rgb(10 17 32 / 0.18);
+
+  /* Slightly rounder corners across the app */
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.25rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-rgb: 10, 10, 10;
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100;
+    /* Tabular figures keep times and dates vertically aligned in tables */
+    font-variant-numeric: tabular-nums;
   }
-}
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-rgb));
+  ::selection {
+    background-color: var(--color-gold-200);
+    color: var(--color-gray-900);
+  }
 }

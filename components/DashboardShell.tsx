@@ -33,7 +33,7 @@ export default function DashboardShell({ children, clubs, isAdmin }: DashboardSh
 
   return (
     <ClubProvider clubs={clubs} isAdmin={isAdmin}>
-      <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
         <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
         <main className="flex-1 overflow-auto">
           <div className="container mx-auto p-6">{children}</div>

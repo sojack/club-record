@@ -63,10 +63,10 @@ export default async function ClubPage({ params, searchParams }: ClubPageProps) 
   if (typedLists.length === 0) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-white">
+        <h1 className="mb-2 font-display text-3xl font-semibold text-gray-900 dark:text-white">
           Records
         </h1>
-        <div className="rounded-xl bg-white p-12 text-center shadow-sm dark:bg-gray-800">
+        <div className="rounded-xl bg-white p-12 text-center shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-900 dark:ring-white/10">
           <p className="text-gray-500 dark:text-gray-400">
             No record lists available yet.
           </p>
@@ -90,7 +90,7 @@ export default async function ClubPage({ params, searchParams }: ClubPageProps) 
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-white">
+      <h1 className="mb-2 font-display text-3xl font-semibold text-gray-900 dark:text-white">
         Club Records
       </h1>
       <ClubRecordBrowser

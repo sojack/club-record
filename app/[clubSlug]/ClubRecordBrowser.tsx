@@ -110,7 +110,7 @@ export default function ClubRecordBrowser({
         <select
           value={selectedListId}
           onChange={(e) => handleListChange(e.target.value)}
-          className="w-full max-w-md rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+          className="w-full max-w-md rounded-lg border border-gray-300 bg-white px-4 py-2.5 font-medium text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
         >
           {groupedLists.map((group) => (
             <optgroup key={group.label} label={group.label}>
@@ -125,11 +125,11 @@ export default function ClubRecordBrowser({
       </div>
 
       {selectedList && (
-        <div className="mb-6 flex items-center gap-2">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+        <div className="mb-6 flex items-center gap-3">
+          <h2 className="font-display text-2xl font-semibold text-gray-900 dark:text-white">
             {selectedList.title}
           </h2>
-          <span className="rounded bg-blue-100 px-2 py-0.5 text-sm font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+          <span className="rounded-full border border-gold-300 bg-gold-50 px-2.5 py-0.5 text-sm font-semibold text-gold-800 dark:border-gold-700 dark:bg-gold-950/50 dark:text-gold-300">
             {selectedList.course_type}
           </span>
           <span className="text-sm text-gray-500 dark:text-gray-400">
@@ -139,19 +139,19 @@ export default function ClubRecordBrowser({
       )}
 
       {loadError ? (
-        <div className="rounded-xl bg-white p-12 text-center shadow-sm dark:bg-gray-800">
+        <div className="rounded-xl bg-white p-12 text-center shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-900 dark:ring-white/10">
           <p className="mb-4 text-gray-500 dark:text-gray-400">
             Couldn&apos;t load that list. Please try again.
           </p>
           <button
             onClick={() => handleListChange(selectedListId)}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+            className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white shadow-sm transition-colors hover:bg-blue-700"
           >
             Retry
           </button>
         </div>
       ) : loading ? (
-        <div className="rounded-xl bg-white p-12 text-center shadow-sm dark:bg-gray-800">
+        <div className="rounded-xl bg-white p-12 text-center shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-900 dark:ring-white/10">
           <p className="text-gray-500 dark:text-gray-400">
             Loading records...
           </p>

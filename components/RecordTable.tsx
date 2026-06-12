@@ -251,45 +251,45 @@ export default function RecordTable({ records, onSave, onDelete, readOnly = fals
           <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>
               {!readOnly && (
-                <th className="w-10 px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                <th className="w-10 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   #
                 </th>
               )}
-              <th className="px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+              <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                 Event
               </th>
               {showAgeGroup && (
-                <th className="px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   Age Group
                 </th>
               )}
-              <th className="px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+              <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                 Time
               </th>
-              <th className="px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+              <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                 {isRelay ? "Swimmers" : "Swimmer"}
               </th>
               {showHolderClub && (
-                <th className="px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   Club
                 </th>
               )}
               {showProvince && (
-                <th className="px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   Prov
                 </th>
               )}
-              <th className="px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+              <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                 Date
               </th>
-              <th className="px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+              <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                 Location
               </th>
-              <th className="px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+              <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                 Flags
               </th>
               {!readOnly && (
-                <th className="w-24 px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                <th className="w-24 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   Actions
                 </th>
               )}

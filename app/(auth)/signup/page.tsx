@@ -119,10 +119,10 @@ export default function SignupPage() {
 
   if (step === "club") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-900">
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-950">
         <div className="w-full max-w-md">
           <div className="mb-8 text-center">
-            <Link href="/" className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+            <Link href="/" className="font-display text-3xl font-semibold tracking-tight text-blue-900 dark:text-blue-300">
               Club Record
             </Link>
             <h1 className="mt-6 text-2xl font-semibold text-gray-900 dark:text-white">
@@ -133,7 +133,7 @@ export default function SignupPage() {
             </p>
           </div>
 
-          <form onSubmit={handleClubSubmit} className="space-y-6">
+          <form onSubmit={handleClubSubmit} className="space-y-6 rounded-2xl bg-white p-8 shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-900 dark:ring-white/10">
             {error && (
               <div className="rounded-lg bg-red-50 p-4 text-sm text-red-600 dark:bg-red-900/50 dark:text-red-400">
                 {error}
@@ -222,7 +222,7 @@ export default function SignupPage() {
                 <div className="w-full border-t border-gray-300 dark:border-gray-600" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="bg-gray-50 px-2 text-gray-500 dark:bg-gray-900 dark:text-gray-400">
+                <span className="bg-white px-2 text-gray-500 dark:bg-gray-900 dark:text-gray-400">
                   or
                 </span>
               </div>
@@ -246,10 +246,10 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-900">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-950">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <Link href="/" className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+          <Link href="/" className="font-display text-3xl font-semibold tracking-tight text-blue-900 dark:text-blue-300">
             Club Record
           </Link>
           <h1 className="mt-6 text-2xl font-semibold text-gray-900 dark:text-white">
@@ -260,7 +260,7 @@ export default function SignupPage() {
           </p>
         </div>
 
-        <form onSubmit={handleCredentialsSubmit} className="space-y-6">
+        <form onSubmit={handleCredentialsSubmit} className="space-y-6 rounded-2xl bg-white p-8 shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-900 dark:ring-white/10">
           {error && (
             <div className="rounded-lg bg-red-50 p-4 text-sm text-red-600 dark:bg-red-900/50 dark:text-red-400">
               {error}

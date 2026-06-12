@@ -87,7 +87,7 @@ export default function ResetPasswordPage() {
 
   if (!ready) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-950">
         <div className="text-gray-500 dark:text-gray-400">Loading...</div>
       </div>
     );
@@ -95,14 +95,14 @@ export default function ResetPasswordPage() {
 
   if (success) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-900">
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-950">
         <div className="w-full max-w-md text-center">
           <div className="mb-8">
-            <Link href="/" className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+            <Link href="/" className="font-display text-3xl font-semibold tracking-tight text-blue-900 dark:text-blue-300">
               Club Record
             </Link>
           </div>
-          <div className="rounded-xl bg-white p-8 shadow-sm dark:bg-gray-800">
+          <div className="rounded-2xl bg-white p-8 shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-900 dark:ring-white/10">
             <div className="mb-4 text-5xl">✓</div>
             <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
               Password updated
@@ -117,10 +117,10 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-900">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-950">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <Link href="/" className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+          <Link href="/" className="font-display text-3xl font-semibold tracking-tight text-blue-900 dark:text-blue-300">
             Club Record
           </Link>
           <h1 className="mt-6 text-2xl font-semibold text-gray-900 dark:text-white">
@@ -131,7 +131,7 @@ export default function ResetPasswordPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl bg-white p-8 shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-900 dark:ring-white/10">
           {error && (
             <div className="rounded-lg bg-red-50 p-4 text-sm text-red-600 dark:bg-red-900/50 dark:text-red-400">
               {error}

@@ -139,9 +139,9 @@ export default function PublicRecordSearch({
               {record.age_group || "-"}
             </td>
           )}
-          <td className="px-4 py-3 text-gray-900 dark:text-white">
+          <td className="px-4 py-3">
             <span className="flex items-center gap-1">
-              <span className="font-mono">
+              <span className="font-mono font-semibold text-gold-700 dark:text-gold-300">
                 {record.time_ms > 0 ? formatTime(record.time_ms) : "-"}
               </span>
               <RecordFlags record={record} size="sm" />
@@ -244,7 +244,7 @@ export default function PublicRecordSearch({
     const hasSplits = (record.split_times?.length ?? 0) > 0;
     return (
       <div key={`mobile-${record.id}`}>
-        <div className="rounded-lg bg-white p-4 shadow-sm dark:bg-gray-800">
+        <div className="rounded-lg bg-white p-4 shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-900 dark:ring-white/10">
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-2 font-medium text-gray-900 dark:text-white">
               {(hasHistory || hasSplits) && (
@@ -259,7 +259,7 @@ export default function PublicRecordSearch({
               {record.event_name}
             </span>
             <span className="flex items-center gap-1">
-              <span className="font-mono text-blue-600 dark:text-blue-400">
+              <span className="font-mono font-semibold text-gold-700 dark:text-gold-300">
                 {record.time_ms > 0 ? formatTime(record.time_ms) : "-"}
               </span>
               <RecordFlags record={record} size="sm" />
@@ -348,44 +348,44 @@ export default function PublicRecordSearch({
           placeholder="Search by event, swimmer, club, or location..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full max-w-md rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+          className="w-full max-w-md rounded-lg border border-gray-300 bg-white px-4 py-2.5 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
         />
         {hasAnyFlags && <RecordFlagsLegend records={currentRecords} />}
       </div>
 
-      <div className="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-gray-800">
+      <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-900 dark:ring-white/10">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-700">
+            <thead className="bg-gray-100 dark:bg-gray-800">
               <tr>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   Event
                 </th>
                 {isRelay && (
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     Age Group
                   </th>
                 )}
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   Time
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   {isRelay ? "Swimmers" : "Swimmer"}
                 </th>
                 {showHolderClub && (
-                  <th className="hidden px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 sm:table-cell">
+                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 sm:table-cell">
                     Club
                   </th>
                 )}
                 {showProvince && (
-                  <th className="hidden px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 sm:table-cell">
+                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 sm:table-cell">
                     Prov
                   </th>
                 )}
-                <th className="hidden px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 md:table-cell">
+                <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 md:table-cell">
                   Date
                 </th>
-                <th className="hidden px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 lg:table-cell">
+                <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 lg:table-cell">
                   Location
                 </th>
               </tr>
@@ -397,10 +397,10 @@ export default function PublicRecordSearch({
                       key={`section-${section.band ?? "all"}`}
                     >
                       {section.band !== null && (
-                        <tr className="bg-gray-800 dark:bg-gray-900">
+                        <tr className="bg-gradient-to-r from-blue-950 to-blue-900">
                           <td
                             colSpan={desktopColSpan}
-                            className="px-4 py-3 text-lg font-bold tracking-wide text-white dark:text-gray-100"
+                            className="px-4 py-3 font-display text-lg font-semibold tracking-wide text-gold-300"
                           >
                             {section.band}
                           </td>
@@ -410,12 +410,12 @@ export default function PublicRecordSearch({
                         <React.Fragment
                           key={`stroke-${section.band ?? "all"}-${g.stroke.key}`}
                         >
-                          <tr className="bg-gray-100 dark:bg-gray-700/50">
+                          <tr className="bg-blue-50 dark:bg-blue-950/40">
                             <td
                               colSpan={desktopColSpan}
                               className={`${
                                 section.band !== null ? "pl-8" : "pl-4"
-                              } pr-4 py-2 font-semibold text-gray-700 dark:text-gray-200`}
+                              } pr-4 py-2 font-semibold text-blue-900 dark:text-blue-200`}
                             >
                               {g.stroke.label}
                             </td>
@@ -454,7 +454,7 @@ export default function PublicRecordSearch({
                 className="space-y-3"
               >
                 {section.band !== null && (
-                  <div className="rounded-md bg-gray-800 px-3 py-2 text-lg font-bold tracking-wide text-white dark:bg-gray-900 dark:text-gray-100">
+                  <div className="rounded-md bg-gradient-to-r from-blue-950 to-blue-900 px-3 py-2 font-display text-lg font-semibold tracking-wide text-gold-300">
                     {section.band}
                   </div>
                 )}
@@ -464,7 +464,7 @@ export default function PublicRecordSearch({
                     className="space-y-3"
                   >
                     <div
-                      className={`rounded-md bg-gray-100 px-3 py-2 font-semibold text-gray-700 dark:bg-gray-700/50 dark:text-gray-200 ${
+                      className={`rounded-md bg-blue-50 px-3 py-2 font-semibold text-blue-900 dark:bg-blue-950/40 dark:text-blue-200 ${
                         section.band !== null ? "ml-4" : ""
                       }`}
                     >

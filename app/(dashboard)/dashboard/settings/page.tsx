@@ -84,7 +84,7 @@ export default function SettingsPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Settings</h1>
+        <h1 className="font-display text-3xl font-semibold text-gray-900 dark:text-white">Settings</h1>
         <p className="mt-2 text-gray-600 dark:text-gray-400">
           Manage your club profile and preferences.
         </p>

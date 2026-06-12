@@ -220,7 +220,7 @@ export default function BulkUploadPage() {
         >
           &larr; Back to Record Lists
         </Link>
-        <h1 className="mt-4 text-3xl font-bold text-gray-900 dark:text-white">
+        <h1 className="mt-4 font-display text-3xl font-semibold text-gray-900 dark:text-white">
           Bulk Upload
         </h1>
         <p className="mt-2 text-gray-600 dark:text-gray-400">
