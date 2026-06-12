@@ -24,9 +24,9 @@ export default async function ClubLayout({ children, params }: ClubLayoutProps) 
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <header className="border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-        <div className="container mx-auto px-4 py-4">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <header className="border-b-2 border-gold-400 bg-gradient-to-r from-blue-950 to-blue-900">
+        <div className="container mx-auto px-4 py-5">
           <div className="flex items-center gap-4">
             {club.logo_url && (
               <Image
@@ -34,17 +34,17 @@ export default async function ClubLayout({ children, params }: ClubLayoutProps) 
                 alt={`${club.short_name} logo`}
                 width={48}
                 height={48}
-                className="rounded-lg"
+                className="rounded-lg bg-white/95 p-0.5"
               />
             )}
             <div>
               <Link
                 href={`/${club.slug}`}
-                className="text-xl font-bold text-gray-900 hover:text-blue-600 dark:text-white dark:hover:text-blue-400"
+                className="font-display text-2xl font-semibold tracking-tight text-white transition-colors hover:text-gold-200"
               >
                 {club.full_name}
               </Link>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm font-medium uppercase tracking-[0.18em] text-gold-300">
                 Records
               </p>
             </div>
@@ -54,11 +54,11 @@ export default async function ClubLayout({ children, params }: ClubLayoutProps) 
 
       <main>{children}</main>
 
-      <footer className="border-t border-gray-200 bg-white py-6 dark:border-gray-700 dark:bg-gray-800">
+      <footer className="border-t border-gray-200 bg-white py-6 dark:border-gray-800 dark:bg-gray-900">
         <div className="container mx-auto px-4 text-center text-sm text-gray-500 dark:text-gray-400">
           <p>
             Powered by{" "}
-            <Link href="/" className="text-blue-600 hover:underline dark:text-blue-400">
+            <Link href="/" className="font-medium text-blue-700 hover:text-gold-700 hover:underline dark:text-blue-400 dark:hover:text-gold-400">
               Club Record
             </Link>
           </p>

@@ -444,7 +444,7 @@ export default function RecordListDetailPage() {
         ) : (
           <div className="mt-4 flex items-start justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              <h1 className="font-display text-3xl font-semibold text-gray-900 dark:text-white">
                 {recordList.title}
               </h1>
               <div className="mt-2 flex items-center gap-3">

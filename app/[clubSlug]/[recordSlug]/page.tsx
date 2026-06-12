@@ -101,11 +101,11 @@ export default async function RecordPage({ params }: RecordPageProps) {
 
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="font-display text-3xl font-semibold text-gray-900 dark:text-white">
             {typedRecordList.title}
           </h1>
           <div className="mt-2 flex items-center gap-2">
-            <span className="rounded bg-blue-100 px-2 py-0.5 text-sm font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+            <span className="rounded-full border border-gold-300 bg-gold-50 px-2.5 py-0.5 text-sm font-semibold text-gold-800 dark:border-gold-700 dark:bg-gold-950/50 dark:text-gold-300">
               {typedRecordList.course_type}
             </span>
             <span className="text-sm text-gray-500 dark:text-gray-400">
