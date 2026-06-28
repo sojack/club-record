@@ -29,8 +29,8 @@ export default function HomePage() {
             </h1>
             <p className="mx-auto mb-10 max-w-2xl text-xl leading-relaxed text-blue-100">
               Create beautiful, shareable record boards for your swim club.
-              Import records via CSV, manage multiple age groups, and share
-              public links with your community.
+              Import records via CSV or let AI prepare your data, manage
+              multiple age groups, and share public links with your community.
             </p>
           </div>
 
@@ -90,15 +90,15 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="mt-20 grid gap-8 pb-8 md:grid-cols-3">
+        <div className="mt-20 grid gap-8 pb-8 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-900 dark:ring-white/10">
             <div className="mb-4 text-3xl">📊</div>
             <h2 className="mb-2 font-display text-lg font-semibold text-gray-900 dark:text-white">
               Easy CSV Import
             </h2>
             <p className="leading-relaxed text-gray-600 dark:text-gray-400">
-              Upload your existing records via CSV. Automatic time format
-              detection handles any format.
+              Upload a CSV and we handle the rest — automatic time-format
+              detection, flexible columns, and per-row error checks.
             </p>
           </div>
           <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5 dark:bg-gray-900 dark:ring-white/10">
@@ -121,6 +121,22 @@ export default function HomePage() {
               and families.
             </p>
           </div>
+          <Link
+            href="/help/import-with-ai"
+            className="group rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5 transition-all hover:-translate-y-0.5 hover:shadow-md dark:bg-gray-900 dark:ring-white/10"
+          >
+            <div className="mb-4 text-3xl">✨</div>
+            <h2 className="mb-2 font-display text-lg font-semibold text-gray-900 dark:text-white">
+              AI-Assisted Import
+            </h2>
+            <p className="leading-relaxed text-gray-600 dark:text-gray-400">
+              Already use AI to manage your data? Get a ready-made prompt that
+              turns your spreadsheets or PDFs into a clean, importable file.
+            </p>
+            <span className="mt-3 inline-block text-sm font-medium text-blue-700 group-hover:text-gold-700 group-hover:underline dark:text-blue-400 dark:group-hover:text-gold-400">
+              Learn how &rarr;
+            </span>
+          </Link>
         </div>
       </main>
 
