@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { parseRecordsCSV, generateCSVTemplate, type CSVRecord } from "@/lib/csv-parser";
+import { generateAIImportPrompt } from "@/lib/ai-import-prompt";
 
 interface CSVUploaderProps {
   onUpload: (records: CSVRecord[]) => void;
@@ -22,6 +23,8 @@ export default function CSVUploader({
   const [errors, setErrors] = useState<string[]>([]);
   const [preview, setPreview] = useState<CSVRecord[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showAIPrompt, setShowAIPrompt] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const handleFile = (file: File) => {
     setErrors([]);
@@ -109,6 +112,23 @@ export default function CSVUploader({
     URL.revokeObjectURL(url);
   };
 
+  const aiPrompt = generateAIImportPrompt({
+    relay,
+    scope,
+    ageGroups: allowedAgeGroups,
+    relayEvents,
+  });
+
+  const copyPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(aiPrompt);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  };
+
   const wantsProvince = scope === "national";
   const wantsClub = scope !== "club";
 
@@ -147,13 +167,47 @@ export default function CSVUploader({
         </p>
       </div>
 
-      <button
-        type="button"
-        onClick={downloadTemplate}
-        className="text-sm text-blue-600 hover:underline dark:text-blue-400"
-      >
-        Download CSV template
-      </button>
+      <div className="flex flex-wrap gap-4">
+        <button
+          type="button"
+          onClick={downloadTemplate}
+          className="text-sm text-blue-600 hover:underline dark:text-blue-400"
+        >
+          Download CSV template
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowAIPrompt((v) => !v)}
+          className="text-sm text-blue-600 hover:underline dark:text-blue-400"
+        >
+          ✨ Prepare my data with AI
+        </button>
+      </div>
+
+      {showAIPrompt && (
+        <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+          <h4 className="font-medium text-gray-900 dark:text-white">
+            Prepare your data with AI
+          </h4>
+          <ol className="mt-2 list-inside list-decimal space-y-1 text-sm text-gray-600 dark:text-gray-400">
+            <li>Copy the prompt below.</li>
+            <li>Paste it into your AI assistant (ChatGPT, Claude, Gemini…) along with your spreadsheet or PDF data.</li>
+            <li>Save the CSV it returns and drop it in the box above.</li>
+          </ol>
+          <textarea
+            readOnly
+            value={aiPrompt}
+            className="mt-3 h-48 w-full resize-y rounded-lg border border-gray-300 bg-gray-50 p-3 font-mono text-xs text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
+          />
+          <button
+            type="button"
+            onClick={copyPrompt}
+            className="mt-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+          >
+            {copied ? "Copied!" : "Copy prompt"}
+          </button>
+        </div>
+      )}
 
       {errors.length > 0 && (
         <div className="rounded-lg bg-red-50 p-4 dark:bg-red-900/20">
