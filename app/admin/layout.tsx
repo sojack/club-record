@@ -37,6 +37,20 @@ export default async function AdminLayout({
             <span className="rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900 dark:text-red-300">
               Admin Mode
             </span>
+            <nav className="flex items-center gap-3 text-sm">
+              <Link
+                href="/admin"
+                className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+              >
+                Clubs
+              </Link>
+              <Link
+                href="/admin/dashboard"
+                className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+              >
+                Dashboard
+              </Link>
+            </nav>
           </div>
           <Link
             href="/dashboard"
