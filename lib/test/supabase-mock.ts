@@ -13,6 +13,7 @@ const CHAIN_METHODS = [
   "order",
   "limit",
   "in",
+  "gte",
   "insert",
   "update",
   "delete",
