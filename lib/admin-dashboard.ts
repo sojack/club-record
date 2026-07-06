@@ -241,6 +241,35 @@ async function safe<T>(
   }
 }
 
+const PAGE_SIZE = 1000;
+const MAX_PAGES = 100;
+
+/** Fetch every row of a query in PAGE_SIZE batches — PostgREST caps
+ *  un-ranged selects at its max-rows default, silently truncating. */
+async function fetchAll<T>(
+  makeQuery: (
+    from: number,
+    to: number
+  ) => PromiseLike<{ data: T[] | null; error: unknown }>,
+  context: string
+): Promise<T[]> {
+  const rows: T[] = [];
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const from = page * PAGE_SIZE;
+    const batch = await safe<T[]>(
+      makeQuery(from, from + PAGE_SIZE - 1),
+      `${context} (rows ${from}+)`,
+      []
+    );
+    rows.push(...batch);
+    if (batch.length < PAGE_SIZE) return rows;
+  }
+  console.warn(
+    `[admin-dashboard] ${context}: cap reached (${PAGE_SIZE * MAX_PAGES} rows); results truncated`
+  );
+  return rows;
+}
+
 async function listAllUsers(admin: SupabaseClient): Promise<UserRow[]> {
   const users: UserRow[] = [];
   const perPage = 1000;
@@ -288,18 +317,27 @@ export async function fetchDashboardData(
       "clubs",
       []
     ),
-    safe<PageViewRow[]>(
-      admin
-        .from("page_views")
-        .select("created_at, club_slug, list_slug, visitor_hash")
-        .gte("created_at", since30),
-      "page_views",
-      []
+    fetchAll<PageViewRow>(
+      (from, to) =>
+        admin
+          .from("page_views")
+          .select("created_at, club_slug, list_slug, visitor_hash")
+          .gte("created_at", since30)
+          .order("created_at", { ascending: true })
+          .range(from, to),
+      "page_views"
     ),
-    safe<RecordActivityRow[]>(
-      admin.from("records").select("updated_at, record_lists!inner(club_id)"),
-      "records activity",
-      []
+    fetchAll<RecordActivityRow>(
+      (from, to) =>
+        admin
+          .from("records")
+          .select("updated_at, record_lists!inner(club_id)")
+          .order("id", { ascending: true })
+          .range(from, to) as unknown as PromiseLike<{
+          data: RecordActivityRow[] | null;
+          error: unknown;
+        }>,
+      "records activity"
     ),
   ]);
 
