@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { unwrap } from "@/lib/supabase/guard";
 import type { Club, RecordList, SwimRecord } from "@/types/database";
 import PublicRecordSearch from "./PublicRecordSearch";
+import TrackView from "@/components/TrackView";
 
 interface RecordPageProps {
   params: Promise<{ clubSlug: string; recordSlug: string }>;
@@ -90,6 +91,7 @@ export default async function RecordPage({ params }: RecordPageProps) {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <TrackView clubSlug={clubSlug} listSlug={recordSlug} />
       <div className="mb-2">
         <Link
           href={`/${club.slug}`}

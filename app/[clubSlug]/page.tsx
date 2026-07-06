@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { unwrap } from "@/lib/supabase/guard";
 import type { Club, RecordList, SwimRecord } from "@/types/database";
 import ClubRecordBrowser from "./ClubRecordBrowser";
+import TrackView from "@/components/TrackView";
 
 interface ClubPageProps {
   params: Promise<{ clubSlug: string }>;
@@ -63,6 +64,7 @@ export default async function ClubPage({ params, searchParams }: ClubPageProps) 
   if (typedLists.length === 0) {
     return (
       <div className="container mx-auto px-4 py-8">
+        <TrackView clubSlug={club.slug} listSlug={null} />
         <h1 className="mb-2 font-display text-3xl font-semibold text-gray-900 dark:text-white">
           Records
         </h1>
@@ -90,6 +92,7 @@ export default async function ClubPage({ params, searchParams }: ClubPageProps) 
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <TrackView clubSlug={club.slug} listSlug={defaultList.slug} />
       <h1 className="mb-2 font-display text-3xl font-semibold text-gray-900 dark:text-white">
         Club Records
       </h1>
