@@ -258,6 +258,11 @@ async function listAllUsers(admin: SupabaseClient): Promise<UserRow[]> {
           created_at: u.created_at,
         }))
       );
+      if (page === 10 && data.users.length === perPage) {
+        console.warn(
+          "[admin-dashboard] listUsers cap reached (10,000); oldest users excluded"
+        );
+      }
       if (data.users.length < perPage) break;
     }
   } catch (e) {
