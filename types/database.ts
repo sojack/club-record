@@ -95,6 +95,17 @@ export interface StandardAgeGroup {
   sort_order: number;
 }
 
+export interface PageView {
+  id: string;
+  created_at: string;
+  club_id: string | null;
+  club_slug: string;
+  list_slug: string | null;
+  path: string;
+  referrer: string | null;
+  visitor_hash: string;
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -127,6 +138,11 @@ export interface Database {
         Row: StandardAgeGroup;
         Insert: Omit<StandardAgeGroup, "id">;
         Update: Partial<Omit<StandardAgeGroup, "id">>;
+      };
+      page_views: {
+        Row: PageView;
+        Insert: Omit<PageView, "id" | "created_at">;
+        Update: Partial<Omit<PageView, "id" | "created_at">>;
       };
     };
   };
