@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import Papa from "papaparse";
-import { buildCombinedCsv, COMBINED_COLUMNS } from "./combined-csv";
+import { buildCombinedCsv, COMBINED_COLUMNS, parseCombinedCsv } from "./combined-csv";
 import type { RecordList, SwimRecord } from "@/types/database";
 
 function list(over: Partial<RecordList>): RecordList {
@@ -60,5 +60,41 @@ describe("buildCombinedCsv", () => {
   it("uses the exact COMBINED_COLUMNS header order", () => {
     const csv = buildCombinedCsv([list({})], new Map([["l1", [rec({})]]]));
     expect(csv.split("\n")[0]).toBe(COMBINED_COLUMNS.join(","));
+  });
+});
+
+describe("parseCombinedCsv", () => {
+  const header = COMBINED_COLUMNS.join(",");
+
+  it("groups rows by List Slug and reads linkage columns", () => {
+    const csv = [
+      header,
+      "Boys SCM,SCM,male,individual,boys-scm,r1,x,,50 Free,,24.56,A,,,,,,2024,Pool,,,,,,,,,",
+      "Boys SCM,SCM,male,individual,boys-scm,old,,r1,50 Free,,25.00,B,,,,,,2023,Pool,,,,,,,,,",
+      "Girls LCM,LCM,female,relay,girls-lcm,,,,4x50 Free,10-12,2:00.00,W,X,Y,Z,,,2024,Pool,,,,,,,,,",
+    ].join("\n");
+    const { groups, errors } = parseCombinedCsv(csv, "club");
+    expect(errors).toEqual([]);
+    expect(groups).toHaveLength(2);
+    const boys = groups.find((g) => g.slug === "boys-scm")!;
+    expect(boys.recordType).toBe("individual");
+    expect(boys.rows).toHaveLength(2);
+    expect(boys.rows[0].recordId).toBe("r1");
+    expect(boys.rows[0].isCurrent).toBe(true);
+    expect(boys.rows[1].isCurrent).toBe(false);
+    expect(boys.rows[1].supersededBy).toBe("r1");
+    const girls = groups.find((g) => g.slug === "girls-lcm")!;
+    expect(girls.recordType).toBe("relay");
+    expect(girls.rows[0].record.swimmer_name_2).toBe("X");
+  });
+
+  it("collects a row error and drops that row", () => {
+    const csv = [
+      header,
+      "Boys SCM,SCM,male,individual,boys-scm,,x,,50 Free,,notatime,A,,,,,,2024,Pool,,,,,,,,,",
+    ].join("\n");
+    const { groups, errors } = parseCombinedCsv(csv, "club");
+    expect(errors.length).toBe(1);
+    expect(groups.find((g) => g.slug === "boys-scm")?.rows ?? []).toHaveLength(0);
   });
 });

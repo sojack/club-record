@@ -2,6 +2,8 @@ import Papa from "papaparse";
 import type { RecordList, SwimRecord } from "@/types/database";
 import { formatMsToTime } from "@/lib/time-utils";
 import { formatSplitsColumn } from "@/lib/split-utils";
+import { parseRecordRow, type RawCSVRow, type CSVRecord } from "@/lib/csv-parser";
+import type { ListScope } from "@/lib/scope";
 
 /** Header order for the combined export/import CSV. */
 export const COMBINED_COLUMNS = [
@@ -64,4 +66,90 @@ export function buildCombinedCsv(
     }
   }
   return Papa.unparse({ fields: [...COMBINED_COLUMNS], data: rows }, { newline: "\n" });
+}
+
+export interface CombinedRow {
+  recordId: string | null;
+  isCurrent: boolean;
+  supersededBy: string | null;
+  record: CSVRecord;
+}
+
+export interface CombinedGroup {
+  slug: string;
+  title: string;
+  courseType: "SCM" | "SCY" | "LCM";
+  gender: "male" | "female" | "mixed" | null;
+  recordType: "individual" | "relay";
+  rows: CombinedRow[];
+}
+
+const truthy = (v: string | undefined): boolean => {
+  const s = (v ?? "").toLowerCase().trim();
+  return s === "x" || s === "true" || s === "yes" || s === "1";
+};
+
+const asCourse = (v: string | undefined): "SCM" | "SCY" | "LCM" => {
+  const u = (v ?? "").toUpperCase().trim();
+  return u === "SCM" || u === "SCY" ? u : "LCM";
+};
+
+const asGender = (v: string | undefined): "male" | "female" | "mixed" | null => {
+  const s = (v ?? "").toLowerCase().trim();
+  return s === "male" || s === "female" || s === "mixed" ? s : null;
+};
+
+/**
+ * Parse a combined CSV (as emitted by `buildCombinedCsv`) back into per-list
+ * groups of rows, using each row's `List Slug` column for grouping.
+ */
+export function parseCombinedCsv(
+  csvContent: string,
+  scope: ListScope
+): { groups: CombinedGroup[]; errors: string[] } {
+  const errors: string[] = [];
+  const parsed = Papa.parse<RawCSVRow>(csvContent, {
+    header: true,
+    skipEmptyLines: true,
+    transformHeader: (h) => h.trim().toLowerCase(),
+  });
+  parsed.errors.forEach((e) => errors.push(`Row ${e.row}: ${e.message}`));
+
+  const bySlug = new Map<string, CombinedGroup>();
+
+  parsed.data.forEach((row, index) => {
+    const slug = (row["list slug"] ?? "").trim();
+    const recordType: "individual" | "relay" =
+      (row["record type"] ?? "").trim().toLowerCase() === "relay" ? "relay" : "individual";
+
+    const { record, error } = parseRecordRow(row, { relay: recordType === "relay", scope }, index + 2);
+    if (error) {
+      errors.push(error);
+      return;
+    }
+    if (!record) return;
+
+    let group = bySlug.get(slug);
+    if (!group) {
+      group = {
+        slug,
+        title: (row["list title"] ?? "").trim(),
+        courseType: asCourse(row["course"]),
+        gender: asGender(row["gender"]),
+        recordType,
+        rows: [],
+      };
+      bySlug.set(slug, group);
+    }
+
+    const recordId = (row["record id"] ?? "").trim() || null;
+    const supersededBy = (row["superseded by"] ?? "").trim() || null;
+    // Default missing "Is Current" to true so hand-authored files (no linkage
+    // columns) treat every row as a live record.
+    const isCurrent = row["is current"] === undefined ? true : truthy(row["is current"]);
+
+    group.rows.push({ recordId, isCurrent, supersededBy, record });
+  });
+
+  return { groups: [...bySlug.values()], errors };
 }
