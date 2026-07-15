@@ -13,6 +13,7 @@ import {
   type ListPlan,
   type CreateRow,
 } from "@/lib/combined-csv";
+import { generateCombinedUpdatePrompt } from "@/lib/ai-import-prompt";
 import type { SwimRecord } from "@/types/database";
 
 interface ParsedFile {
@@ -69,6 +70,8 @@ export default function BulkUploadPage() {
   const [mode, setMode] = useState<"per-list" | "combined">("per-list");
   const [plans, setPlans] = useState<ListPlan[] | null>(null);
   const [planErrors, setPlanErrors] = useState<string[]>([]);
+  const [showCombinedPrompt, setShowCombinedPrompt] = useState(false);
+  const [promptCopied, setPromptCopied] = useState(false);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -197,6 +200,18 @@ export default function BulkUploadPage() {
     } finally {
       setUploading(false);
       setProgress(null);
+    }
+  };
+
+  const combinedUpdatePrompt = generateCombinedUpdatePrompt();
+
+  const copyCombinedPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(combinedUpdatePrompt);
+      setPromptCopied(true);
+      setTimeout(() => setPromptCopied(false), 2000);
+    } catch {
+      setPromptCopied(false);
     }
   };
 
@@ -702,6 +717,41 @@ export default function BulkUploadPage() {
                 </p>
               </label>
             </div>
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => setShowCombinedPrompt((v) => !v)}
+                className="text-sm text-blue-600 hover:underline dark:text-blue-400"
+              >
+                ✨ Prepare update with AI
+              </button>
+            </div>
+            {showCombinedPrompt && (
+              <div className="mt-4 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                <h4 className="font-medium text-gray-900 dark:text-white">
+                  Update your records with AI
+                </h4>
+                <ol className="mt-2 list-inside list-decimal space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                  <li>Export your records (the combined CSV) from this club.</li>
+                  <li>Copy this prompt.</li>
+                  <li>Paste it into your AI assistant (ChatGPT, Claude, Gemini…), along with your exported CSV and your new results.</li>
+                  <li>Save the CSV it returns.</li>
+                  <li>Upload it here.</li>
+                </ol>
+                <textarea
+                  readOnly
+                  value={combinedUpdatePrompt}
+                  className="mt-3 h-48 w-full resize-y rounded-lg border border-gray-300 bg-gray-50 p-3 font-mono text-xs text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200"
+                />
+                <button
+                  type="button"
+                  onClick={copyCombinedPrompt}
+                  className="mt-2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+                >
+                  {promptCopied ? "Copied!" : "Copy prompt"}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Plan Preview */}

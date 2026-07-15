@@ -1,3 +1,5 @@
+import { COMBINED_COLUMNS } from "@/lib/combined-csv";
+
 export interface AIImportPromptOptions {
   relay?: boolean;
   scope?: "club" | "provincial" | "national";
@@ -82,6 +84,38 @@ export function generateAIImportPrompt(options: AIImportPromptOptions = {}): str
     columns.join(","),
     "",
     "--- PASTE YOUR DATA BELOW ---",
+    "",
+  ].join("\n");
+}
+
+/**
+ * Prompt for the "update with AI" loop on a full combined-CSV export. It must
+ * keep the identity/linkage columns intact so re-import matches existing
+ * records (by Record ID, or by exact content) instead of duplicating them.
+ */
+export function generateCombinedUpdatePrompt(): string {
+  const header = [...COMBINED_COLUMNS].join(",");
+  const rules = [
+    "This CSV is a full export of a swim club's records. Each row is one record. The leading columns identify the record's list and its history; the rest are the record's data.",
+    "Output ONLY CSV: the exact same header row, then every original row, plus any rows you add. No commentary, no markdown code fences.",
+    `Header row, exactly: ${header}`,
+    "NEVER delete a row. Keep every existing row.",
+    "For every existing row, do NOT change these columns: List Title, Course, Gender, Record Type, List Slug, Record ID, Is Current, Superseded By. Leave them exactly as they are — they link each row to its record and its history.",
+    "You MAY correct a record's data on its existing row (Time, Swimmer, Name2-Name4, AgeGroup, Club, Province, Date, Location, the is_* flags, Splits). Correcting a time in place overwrites the old time and keeps no history.",
+    "To record a NEW or broken record (someone swam faster), ADD a new row: copy List Title, Course, Gender, Record Type, and List Slug from another row in the SAME list; leave Record ID blank; put x in Is Current; leave Superseded By blank. On import, a faster time in the same Event + AgeGroup automatically supersedes the old record and keeps it as history.",
+    "Time format: MM:SS.hh for one minute or more (e.g. 1:02.34), SS.hh for under a minute (e.g. 24.56). Never write minutes as a decimal.",
+    "Date format: YYYY, YYYY-MM, or YYYY-MM-DD. If unknown, leave it blank.",
+    "Flag columns (the is_* columns): put a lowercase x when true, otherwise leave the cell blank.",
+  ];
+  const numbered = rules.map((r, i) => `${i + 1}. ${r}`).join("\n");
+  return [
+    "You are helping a swim club update their records CSV for Club Record (clubrecord.ca).",
+    "",
+    "Below is my current records export, followed by the new results I want to apply. Return the updated CSV following these rules:",
+    "",
+    numbered,
+    "",
+    "--- PASTE YOUR CURRENT EXPORT AND NEW RESULTS BELOW ---",
     "",
   ].join("\n");
 }
