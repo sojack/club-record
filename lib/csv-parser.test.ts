@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseRecordsCSV } from "./csv-parser";
+import { parseRecordsCSV, parseRecordRow } from "./csv-parser";
 
 describe("parseRecordsCSV — individual", () => {
   it("parses a basic row", () => {
@@ -224,5 +224,36 @@ describe("parseRecordsCSV splits", () => {
     const { records, errors } = parseRecordsCSV(csv);
     expect(records).toHaveLength(0);
     expect(errors[0]).toMatch(/Row 2:.*Malformed split/);
+  });
+});
+
+describe("is_RelaySplit header alias", () => {
+  it("maps is_RelaySplit column to is_relay_split", () => {
+    const csv = "Event,Time,Swimmer,is_RelaySplit\n50 Free,24.56,A,x";
+    const { records, errors } = parseRecordsCSV(csv);
+    expect(errors).toEqual([]);
+    expect(records[0].is_relay_split).toBe(true);
+  });
+});
+
+describe("parseRecordRow", () => {
+  it("parses a single lowercased row", () => {
+    const { record, error } = parseRecordRow(
+      { event: "50 Free", time: "24.56", swimmer: "A" },
+      {},
+      2
+    );
+    expect(error).toBeNull();
+    expect(record?.time_ms).toBe(24560);
+  });
+
+  it("returns an error with the given human row number", () => {
+    const { record, error } = parseRecordRow(
+      { event: "", time: "24.56", swimmer: "A" },
+      {},
+      7
+    );
+    expect(record).toBeNull();
+    expect(error).toContain("Row 7");
   });
 });

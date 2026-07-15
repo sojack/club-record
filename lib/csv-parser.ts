@@ -125,7 +125,7 @@ export interface CSVRecord {
   is_world_record: boolean;
 }
 
-interface RawCSVRow {
+export interface RawCSVRow {
   [key: string]: string;
 }
 
@@ -134,6 +134,167 @@ export interface RelayParseOptions {
   scope?: "club" | "provincial" | "national";
   /** Allowed standard age-group names; when provided, non-matching rows error. */
   allowedAgeGroups?: string[];
+}
+
+// Map column names (support variations)
+const columnMaps = {
+  event: ["event", "event_name", "eventname"],
+  time: ["time", "time_ms", "record_time"],
+  swimmer: ["swimmer", "swimmer_name", "swimmername", "name", "name1", "athlete"],
+  date: ["date", "record_date", "recorddate"],
+  location: ["location", "meet", "venue"],
+  is_national: ["is_national", "national", "canadian_record"],
+  is_current_national: ["is_current_national", "current_national", "current_canadian"],
+  is_provincial: ["is_provincial", "provincial", "provincial_record"],
+  is_current_provincial: ["is_current_provincial", "current_provincial"],
+  is_split: ["is_split", "split", "split_time"],
+  is_relay_split: ["is_relay_split", "is_relaysplit", "relay_split", "relay"],
+  is_new: ["is_new", "new", "new_record"],
+  is_world_record: ["is_world_record", "world_record", "world", "wr"],
+  swimmer2: ["name2", "swimmer2", "swimmer_name_2", "name_2"],
+  swimmer3: ["name3", "swimmer3", "swimmer_name_3", "name_3"],
+  swimmer4: ["name4", "swimmer4", "swimmer_name_4", "name_4"],
+  age_group: ["agegroup", "age_group", "age group", "age"],
+  record_club: ["club", "record_club", "team"],
+  province: ["province", "prov", "state"],
+  splits: ["splits", "split_times"],
+};
+
+const parseBoolean = (value: string | undefined): boolean => {
+  if (!value) return false;
+  const lower = value.toLowerCase().trim();
+  return lower === "true" || lower === "yes" || lower === "1" || lower === "x";
+};
+
+const findColumn = (row: RawCSVRow, options: string[]): string | undefined => {
+  for (const opt of options) {
+    if (row[opt] !== undefined) {
+      return row[opt];
+    }
+  }
+  return undefined;
+};
+
+/**
+ * Parse a single already-parsed CSV row (keys lowercased/trimmed) into a
+ * CSVRecord, or return an error keyed to the given human-facing row number.
+ */
+export function parseRecordRow(
+  row: RawCSVRow,
+  relayOptions: RelayParseOptions,
+  humanRow: number
+): { record: CSVRecord | null; error: string | null } {
+  const event = findColumn(row, columnMaps.event);
+  const time = findColumn(row, columnMaps.time);
+  const swimmer = findColumn(row, columnMaps.swimmer);
+  const date = findColumn(row, columnMaps.date);
+  const location = findColumn(row, columnMaps.location);
+  const is_national = findColumn(row, columnMaps.is_national);
+  const is_current_national = findColumn(row, columnMaps.is_current_national);
+  const is_provincial = findColumn(row, columnMaps.is_provincial);
+  const is_current_provincial = findColumn(row, columnMaps.is_current_provincial);
+  const is_split = findColumn(row, columnMaps.is_split);
+  const is_relay_split = findColumn(row, columnMaps.is_relay_split);
+  const is_new = findColumn(row, columnMaps.is_new);
+  const is_world_record = findColumn(row, columnMaps.is_world_record);
+
+  const isRelay = relayOptions.relay === true;
+  const name2 = findColumn(row, columnMaps.swimmer2);
+  const name3 = findColumn(row, columnMaps.swimmer3);
+  const name4 = findColumn(row, columnMaps.swimmer4);
+  const ageGroup = findColumn(row, columnMaps.age_group);
+  const recordClub = findColumn(row, columnMaps.record_club);
+  const province = findColumn(row, columnMaps.province);
+  const splitsRaw = findColumn(row, columnMaps.splits);
+  let split_times: SplitTime[] | null;
+  try {
+    split_times = parseSplitsColumn(splitsRaw);
+  } catch (e) {
+    return { record: null, error: `Row ${humanRow}: ${(e as Error).message}` };
+  }
+
+  if (!event || !time || !swimmer) {
+    return {
+      record: null,
+      error: `Row ${humanRow}: Missing required field (event, time, or swimmer)`,
+    };
+  }
+
+  const time_ms = parseTimeToMs(time);
+  if (time_ms === 0) {
+    return { record: null, error: `Row ${humanRow}: Invalid time format "${time}"` };
+  }
+
+  const rawScope = relayOptions.scope;
+  const scope =
+    rawScope === "national" ? "national" : rawScope === "provincial" ? "provincial" : "club";
+  const carriesAgeClub = scope !== "club";
+  const carriesProvince = scope === "national";
+
+  if (isRelay) {
+    const presentLegs = [name2, name3, name4].filter((n) => n?.trim()).length;
+    if (presentLegs !== 0 && presentLegs !== 3) {
+      return {
+        record: null,
+        error: `Row ${humanRow}: A relay needs all 4 swimmer names, or just the team name in leg 1 (Swimmer)`,
+      };
+    }
+    if (
+      relayOptions.allowedAgeGroups &&
+      relayOptions.allowedAgeGroups.length > 0 &&
+      ageGroup?.trim() &&
+      !relayOptions.allowedAgeGroups.includes(ageGroup.trim())
+    ) {
+      return {
+        record: null,
+        error: `Row ${humanRow}: Age Group "${ageGroup.trim()}" is not a standard age group`,
+      };
+    }
+  }
+
+  if (carriesAgeClub) {
+    if (!ageGroup?.trim()) {
+      return {
+        record: null,
+        error: `Row ${humanRow}: ${scope === "national" ? "National" : "Provincial"} records require an Age Group`,
+      };
+    }
+    if (!recordClub?.trim()) {
+      return {
+        record: null,
+        error: `Row ${humanRow}: ${scope === "national" ? "National" : "Provincial"} records require a Club`,
+      };
+    }
+    if (carriesProvince && !province?.trim()) {
+      return { record: null, error: `Row ${humanRow}: National records require a Province` };
+    }
+  }
+
+  return {
+    record: {
+      event_name: event.trim(),
+      time_ms,
+      swimmer_name: swimmer.trim(),
+      swimmer_name_2: isRelay ? name2?.trim() || null : null,
+      swimmer_name_3: isRelay ? name3?.trim() || null : null,
+      swimmer_name_4: isRelay ? name4?.trim() || null : null,
+      age_group: carriesAgeClub ? ageGroup!.trim() : null,
+      record_club: carriesAgeClub ? recordClub!.trim() : null,
+      province: carriesProvince ? province!.trim() : null,
+      record_date: normalizeDate(date),
+      location: location?.trim() || null,
+      split_times,
+      is_national: parseBoolean(is_national),
+      is_current_national: parseBoolean(is_current_national),
+      is_provincial: parseBoolean(is_provincial),
+      is_current_provincial: parseBoolean(is_current_provincial),
+      is_split: parseBoolean(is_split),
+      is_relay_split: parseBoolean(is_relay_split),
+      is_new: parseBoolean(is_new),
+      is_world_record: parseBoolean(is_world_record),
+    },
+    error: null,
+  };
 }
 
 /**
@@ -162,163 +323,10 @@ export function parseRecordsCSV(
     });
   }
 
-  // Map column names (support variations)
-  const columnMaps = {
-    event: ["event", "event_name", "eventname"],
-    time: ["time", "time_ms", "record_time"],
-    swimmer: ["swimmer", "swimmer_name", "swimmername", "name", "name1", "athlete"],
-    date: ["date", "record_date", "recorddate"],
-    location: ["location", "meet", "venue"],
-    is_national: ["is_national", "national", "canadian_record"],
-    is_current_national: ["is_current_national", "current_national", "current_canadian"],
-    is_provincial: ["is_provincial", "provincial", "provincial_record"],
-    is_current_provincial: ["is_current_provincial", "current_provincial"],
-    is_split: ["is_split", "split", "split_time"],
-    is_relay_split: ["is_relay_split", "relay_split", "relay"],
-    is_new: ["is_new", "new", "new_record"],
-    is_world_record: ["is_world_record", "world_record", "world", "wr"],
-    swimmer2: ["name2", "swimmer2", "swimmer_name_2", "name_2"],
-    swimmer3: ["name3", "swimmer3", "swimmer_name_3", "name_3"],
-    swimmer4: ["name4", "swimmer4", "swimmer_name_4", "name_4"],
-    age_group: ["agegroup", "age_group", "age group", "age"],
-    record_club: ["club", "record_club", "team"],
-    province: ["province", "prov", "state"],
-    splits: ["splits", "split_times"],
-  };
-
-  const parseBoolean = (value: string | undefined): boolean => {
-    if (!value) return false;
-    const lower = value.toLowerCase().trim();
-    return lower === "true" || lower === "yes" || lower === "1" || lower === "x";
-  };
-
-  const findColumn = (row: RawCSVRow, options: string[]): string | undefined => {
-    for (const opt of options) {
-      if (row[opt] !== undefined) {
-        return row[opt];
-      }
-    }
-    return undefined;
-  };
-
   result.data.forEach((row, index) => {
-    const event = findColumn(row, columnMaps.event);
-    const time = findColumn(row, columnMaps.time);
-    const swimmer = findColumn(row, columnMaps.swimmer);
-    const date = findColumn(row, columnMaps.date);
-    const location = findColumn(row, columnMaps.location);
-    const is_national = findColumn(row, columnMaps.is_national);
-    const is_current_national = findColumn(row, columnMaps.is_current_national);
-    const is_provincial = findColumn(row, columnMaps.is_provincial);
-    const is_current_provincial = findColumn(row, columnMaps.is_current_provincial);
-    const is_split = findColumn(row, columnMaps.is_split);
-    const is_relay_split = findColumn(row, columnMaps.is_relay_split);
-    const is_new = findColumn(row, columnMaps.is_new);
-    const is_world_record = findColumn(row, columnMaps.is_world_record);
-
-    const isRelay = relayOptions.relay === true;
-    const name2 = findColumn(row, columnMaps.swimmer2);
-    const name3 = findColumn(row, columnMaps.swimmer3);
-    const name4 = findColumn(row, columnMaps.swimmer4);
-    const ageGroup = findColumn(row, columnMaps.age_group);
-    const recordClub = findColumn(row, columnMaps.record_club);
-    const province = findColumn(row, columnMaps.province);
-    const splitsRaw = findColumn(row, columnMaps.splits);
-    let split_times: SplitTime[] | null;
-    try {
-      split_times = parseSplitsColumn(splitsRaw);
-    } catch (e) {
-      errors.push(`Row ${index + 2}: ${(e as Error).message}`);
-      return;
-    }
-
-    if (!event || !time || !swimmer) {
-      errors.push(
-        `Row ${index + 2}: Missing required field (event, time, or swimmer)`
-      );
-      return;
-    }
-
-    const time_ms = parseTimeToMs(time);
-    if (time_ms === 0) {
-      errors.push(`Row ${index + 2}: Invalid time format "${time}"`);
-      return;
-    }
-
-    const rawScope = relayOptions.scope;
-    const scope =
-      rawScope === "national"
-        ? "national"
-        : rawScope === "provincial"
-        ? "provincial"
-        : "club";
-    const carriesAgeClub = scope !== "club"; // provincial + national
-    const carriesProvince = scope === "national";
-
-    if (isRelay) {
-      const presentLegs = [name2, name3, name4].filter((n) => n?.trim()).length;
-      if (presentLegs !== 0 && presentLegs !== 3) {
-        errors.push(
-          `Row ${index + 2}: A relay needs all 4 swimmer names, or just the team name in leg 1 (Swimmer)`
-        );
-        return;
-      }
-      if (
-        relayOptions.allowedAgeGroups &&
-        relayOptions.allowedAgeGroups.length > 0 &&
-        ageGroup?.trim() &&
-        !relayOptions.allowedAgeGroups.includes(ageGroup.trim())
-      ) {
-        errors.push(
-          `Row ${index + 2}: Age Group "${ageGroup.trim()}" is not a standard age group`
-        );
-        return;
-      }
-    }
-
-    if (carriesAgeClub) {
-      if (!ageGroup?.trim()) {
-        errors.push(
-          `Row ${index + 2}: ${scope === "national" ? "National" : "Provincial"} records require an Age Group`
-        );
-        return;
-      }
-      if (!recordClub?.trim()) {
-        errors.push(
-          `Row ${index + 2}: ${scope === "national" ? "National" : "Provincial"} records require a Club`
-        );
-        return;
-      }
-      if (carriesProvince && !province?.trim()) {
-        errors.push(
-          `Row ${index + 2}: National records require a Province`
-        );
-        return;
-      }
-    }
-
-    records.push({
-      event_name: event.trim(),
-      time_ms,
-      swimmer_name: swimmer.trim(),
-      swimmer_name_2: isRelay ? (name2?.trim() || null) : null,
-      swimmer_name_3: isRelay ? (name3?.trim() || null) : null,
-      swimmer_name_4: isRelay ? (name4?.trim() || null) : null,
-      age_group: carriesAgeClub ? ageGroup!.trim() : null,
-      record_club: carriesAgeClub ? recordClub!.trim() : null,
-      province: carriesProvince ? province!.trim() : null,
-      record_date: normalizeDate(date),
-      location: location?.trim() || null,
-      split_times,
-      is_national: parseBoolean(is_national),
-      is_current_national: parseBoolean(is_current_national),
-      is_provincial: parseBoolean(is_provincial),
-      is_current_provincial: parseBoolean(is_current_provincial),
-      is_split: parseBoolean(is_split),
-      is_relay_split: parseBoolean(is_relay_split),
-      is_new: parseBoolean(is_new),
-      is_world_record: parseBoolean(is_world_record),
-    });
+    const { record, error } = parseRecordRow(row, relayOptions, index + 2);
+    if (error) errors.push(error);
+    if (record) records.push(record);
   });
 
   return { records, errors };
