@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useClub } from "@/contexts/ClubContext";
-import { formatMsToTime } from "@/lib/time-utils";
+import { buildCombinedCsv } from "@/lib/combined-csv";
 import type { RecordList, SwimRecord } from "@/types/database";
 import { maxIso } from "@/lib/date-utils";
 import LastUpdated from "@/components/LastUpdated";
@@ -156,67 +156,40 @@ export default function RecordListsPage() {
 
   const handleExportCSV = async () => {
     if (!selectedClub) return;
-
     setIsExporting(true);
-
     try {
       const supabase = createClient();
 
-      // Fetch all record lists with their records
       const { data: lists } = await supabase
         .from("record_lists")
-        .select("id, title")
+        .select("*")
         .eq("club_id", selectedClub.id)
         .order("title");
+      if (!lists || lists.length === 0) return;
 
-      if (!lists || lists.length === 0) {
-        return;
-      }
-
-      // Fetch all records for these lists
       const listIds = lists.map((l) => l.id);
       const { data: records } = await supabase
         .from("records")
         .select("*")
         .in("record_list_id", listIds)
         .order("sort_order");
+      if (!records) return;
 
-      if (!records) {
-        return;
+      // Group records by list, current rows before their history within a list.
+      const byList = new Map<string, SwimRecord[]>();
+      for (const r of records as SwimRecord[]) {
+        byList.set(r.record_list_id, [...(byList.get(r.record_list_id) ?? []), r]);
+      }
+      for (const [id, recs] of byList) {
+        recs.sort((a, b) => {
+          if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
+          return (a.is_current ? 0 : 1) - (b.is_current ? 0 : 1);
+        });
+        byList.set(id, recs);
       }
 
-      // Create a map of list id to title
-      const listTitleMap = new Map(lists.map((l) => [l.id, l.title]));
+      const csvContent = buildCombinedCsv(lists as RecordList[], byList);
 
-      // Build CSV content
-      const csvRows = [
-        ["Record List", "Event", "Time", "Swimmer", "Date", "Location", "is_World_Record", "is_National", "is_Current_National", "is_Provincial", "is_Current_Provincial", "is_Split", "is_RelaySplit", "is_New"].join(","),
-      ];
-
-      for (const record of records as SwimRecord[]) {
-        const listTitle = listTitleMap.get(record.record_list_id) || "";
-        const row = [
-          `"${listTitle.replace(/"/g, '""')}"`,
-          `"${record.event_name.replace(/"/g, '""')}"`,
-          `"${formatMsToTime(record.time_ms)}"`,
-          `"${record.swimmer_name.replace(/"/g, '""')}"`,
-          `"${record.record_date || ""}"`,
-          `"${(record.location || "").replace(/"/g, '""')}"`,
-          record.is_world_record ? "true" : "",
-          record.is_national ? "true" : "",
-          record.is_current_national ? "true" : "",
-          record.is_provincial ? "true" : "",
-          record.is_current_provincial ? "true" : "",
-          record.is_split ? "true" : "",
-          record.is_relay_split ? "true" : "",
-          record.is_new ? "true" : "",
-        ];
-        csvRows.push(row.join(","));
-      }
-
-      const csvContent = csvRows.join("\n");
-
-      // Trigger download
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
