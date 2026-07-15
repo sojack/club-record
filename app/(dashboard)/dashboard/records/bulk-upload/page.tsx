@@ -214,18 +214,34 @@ export default function BulkUploadPage() {
       let existingList: { id: string } | null = null;
       let existingRecords: SwimRecord[] = [];
       if (group.slug) {
-        const { data: list } = await supabase
+        const { data: list, error: listError } = await supabase
           .from("record_lists")
           .select("id")
           .eq("club_id", selectedClub.id)
           .eq("slug", group.slug)
           .maybeSingle();
+        if (listError) {
+          setPlanErrors([
+            ...errors,
+            `Couldn't read existing records for "${group.title || group.slug}". Please try again.`,
+          ]);
+          setPlans(null);
+          return;
+        }
         if (list) {
           existingList = { id: list.id };
-          const { data: recs } = await supabase
+          const { data: recs, error: recsError } = await supabase
             .from("records")
             .select("*")
             .eq("record_list_id", list.id);
+          if (recsError) {
+            setPlanErrors([
+              ...errors,
+              `Couldn't read existing records for "${group.title || group.slug}". Please try again.`,
+            ]);
+            setPlans(null);
+            return;
+          }
           existingRecords = (recs as SwimRecord[]) ?? [];
         }
       }
