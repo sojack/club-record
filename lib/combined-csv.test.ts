@@ -179,6 +179,33 @@ describe("planReconciliation — update", () => {
     expect(plan.ops).toEqual([]);
     expect(plan.flags.length).toBe(1);
   });
+
+  it("treats an id-less row exactly matching an existing record (same time+swimmer) as an update, not a duplicate", () => {
+    const g = group([{ recordId: null, isCurrent: true, supersededBy: null, record: csvRec({ time_ms: 24560, swimmer_name: "A" }) }]);
+    const plan = planReconciliation(g, { id: "l1" }, [rec({ id: "r1", time_ms: 24560, swimmer_name: "A" })], "club");
+    expect(plan.ops).toEqual([{ kind: "update", id: "r1", fields: csvRec({ time_ms: 24560, swimmer_name: "A" }) }]);
+    expect(plan.flags).toEqual([]);
+  });
+
+  it("still supersedes an id-less faster row that does NOT exactly match", () => {
+    const g = group([{ recordId: null, isCurrent: true, supersededBy: null, record: csvRec({ time_ms: 24000, swimmer_name: "New" }) }]);
+    const plan = planReconciliation(g, { id: "l1" }, [rec({ id: "r1", time_ms: 24560, swimmer_name: "Old", sort_order: 2 })], "club");
+    expect(plan.ops).toEqual([{ kind: "supersede", oldId: "r1", fields: csvRec({ time_ms: 24000, swimmer_name: "New" }), sortOrder: 2 }]);
+  });
+
+  it("flags an id-matched row whose time changed (a correction, no history)", () => {
+    const g = group([{ recordId: "r1", isCurrent: true, supersededBy: null, record: csvRec({ time_ms: 23000 }) }]);
+    const plan = planReconciliation(g, { id: "l1" }, [rec({ id: "r1", time_ms: 24560 })], "club");
+    expect(plan.ops).toEqual([{ kind: "update", id: "r1", fields: csvRec({ time_ms: 23000 }) }]);
+    expect(plan.flags.length).toBe(1);
+    expect(plan.flags[0].toLowerCase()).toContain("correction");
+  });
+
+  it("does not flag an id-matched row whose time is unchanged", () => {
+    const g = group([{ recordId: "r1", isCurrent: true, supersededBy: null, record: csvRec({ time_ms: 24560 }) }]);
+    const plan = planReconciliation(g, { id: "l1" }, [rec({ id: "r1", time_ms: 24560 })], "club");
+    expect(plan.flags).toEqual([]);
+  });
 });
 
 describe("planReconciliation — create", () => {

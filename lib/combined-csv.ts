@@ -242,6 +242,12 @@ export function planReconciliation(
 
   for (const row of group.rows) {
     if (row.recordId && byId.has(row.recordId)) {
+      const existing = byId.get(row.recordId)!;
+      if (existing.time_ms !== row.record.time_ms) {
+        flags.push(
+          `${row.record.event_name}: time changed on an existing record — updated in place with no history kept (a correction, not a new record)`
+        );
+      }
       ops.push({ kind: "update", id: row.recordId, fields: row.record });
       continue;
     }
@@ -250,6 +256,17 @@ export function planReconciliation(
       continue;
     }
     const inSlot = currentBySlot.get(slotKey(row.record)) ?? [];
+    // Safety net: an id-less current row that exactly matches an existing
+    // current record in its slot (same time and swimmer) is the SAME record
+    // re-listed without its Record ID (e.g. an AI edit dropped the column) —
+    // update it in place instead of inserting a duplicate.
+    const exactMatch = inSlot.find(
+      (r) => r.time_ms === row.record.time_ms && r.swimmer_name === row.record.swimmer_name
+    );
+    if (exactMatch) {
+      ops.push({ kind: "update", id: exactMatch.id, fields: row.record });
+      continue;
+    }
     if (inSlot.length === 1 && row.record.time_ms < inSlot[0].time_ms) {
       if (supersededOldIds.has(inSlot[0].id)) {
         flags.push(`multiple new records break the same record (${row.record.event_name}) — added as new instead`);
