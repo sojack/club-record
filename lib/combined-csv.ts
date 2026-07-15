@@ -153,3 +153,120 @@ export function parseCombinedCsv(
 
   return { groups: [...bySlug.values()], errors };
 }
+
+export type RecordOp =
+  | { kind: "update"; id: string; fields: CSVRecord }
+  | { kind: "insert"; fields: CSVRecord; sortOrder: number }
+  | { kind: "supersede"; oldId: string; fields: CSVRecord; sortOrder: number };
+
+export interface CreateRow {
+  fields: CSVRecord;
+  isCurrent: boolean;
+  csvRecordId: string | null;
+  supersededByCsvId: string | null;
+  sortOrder: number;
+}
+
+export interface ListPlan {
+  slug: string;
+  title: string;
+  courseType: "SCM" | "SCY" | "LCM";
+  gender: "male" | "female" | "mixed" | null;
+  recordType: "individual" | "relay";
+  scope: ListScope;
+  action: "update" | "create";
+  ops: RecordOp[]; // action === "update"
+  createRows: CreateRow[]; // action === "create"
+  flags: string[]; // human-readable warnings for the preview
+}
+
+const slotKey = (r: { event_name: string; age_group: string | null }): string =>
+  `${r.event_name.toLowerCase().trim()}|${r.age_group ?? ""}`;
+
+/**
+ * Plan how a parsed combined-CSV group should be reconciled against the
+ * database: for a brand-new list, every row becomes a `CreateRow` (current
+ * rows first, history rows linked via their CSV-local id); for an existing
+ * list, each row becomes an update/insert/supersede `RecordOp`. Never emits
+ * a delete — existing records absent from the CSV simply produce no op.
+ */
+export function planReconciliation(
+  group: CombinedGroup,
+  existingList: { id: string } | null,
+  existingRecords: SwimRecord[],
+  scope: ListScope
+): ListPlan {
+  const base = {
+    slug: group.slug, title: group.title, courseType: group.courseType,
+    gender: group.gender, recordType: group.recordType, scope,
+  };
+
+  if (!existingList) {
+    const flags: string[] = [];
+    const createRows: CreateRow[] = [];
+    const currentCsvIds = new Set(
+      group.rows.filter((r) => r.isCurrent && r.recordId).map((r) => r.recordId as string)
+    );
+    let ordinal = 0;
+    for (const row of group.rows) {
+      if (row.isCurrent) {
+        createRows.push({
+          fields: row.record, isCurrent: true, csvRecordId: row.recordId,
+          supersededByCsvId: null, sortOrder: ordinal++,
+        });
+      } else {
+        if (!row.supersededBy || !currentCsvIds.has(row.supersededBy)) {
+          flags.push(`history row for ${row.record.event_name} has no matching current record — skipped`);
+          continue;
+        }
+        createRows.push({
+          fields: row.record, isCurrent: false, csvRecordId: row.recordId,
+          supersededByCsvId: row.supersededBy, sortOrder: 0,
+        });
+      }
+    }
+    return { ...base, action: "create", ops: [], createRows, flags };
+  }
+
+  const byId = new Map(existingRecords.map((r) => [r.id, r]));
+  const currentBySlot = new Map<string, SwimRecord[]>();
+  for (const r of existingRecords) {
+    if (!r.is_current) continue;
+    const k = slotKey(r);
+    currentBySlot.set(k, [...(currentBySlot.get(k) ?? []), r]);
+  }
+  let appendCounter = existingRecords.reduce((m, r) => Math.max(m, r.sort_order), -1) + 1;
+  const supersededOldIds = new Set<string>();
+  const ops: RecordOp[] = [];
+  const flags: string[] = [];
+
+  for (const row of group.rows) {
+    if (row.recordId && byId.has(row.recordId)) {
+      ops.push({ kind: "update", id: row.recordId, fields: row.record });
+      continue;
+    }
+    if (!row.isCurrent) {
+      flags.push(`history row for ${row.record.event_name} has no matching record — skipped`);
+      continue;
+    }
+    const inSlot = currentBySlot.get(slotKey(row.record)) ?? [];
+    if (inSlot.length === 1 && row.record.time_ms < inSlot[0].time_ms) {
+      if (supersededOldIds.has(inSlot[0].id)) {
+        flags.push(`multiple new records break the same record (${row.record.event_name}) — added as new instead`);
+        ops.push({ kind: "insert", fields: row.record, sortOrder: appendCounter++ });
+      } else {
+        supersededOldIds.add(inSlot[0].id);
+        ops.push({ kind: "supersede", oldId: inSlot[0].id, fields: row.record, sortOrder: inSlot[0].sort_order });
+      }
+    } else if (inSlot.length === 1) {
+      flags.push(`${row.record.event_name}: new time is not faster than the current record — added as a separate record`);
+      ops.push({ kind: "insert", fields: row.record, sortOrder: appendCounter++ });
+    } else if (inSlot.length === 0) {
+      ops.push({ kind: "insert", fields: row.record, sortOrder: appendCounter++ });
+    } else {
+      flags.push(`${row.record.event_name} (${row.record.age_group ?? "no age group"}): more than one current record in this slot — added as new, not auto-superseded`);
+      ops.push({ kind: "insert", fields: row.record, sortOrder: appendCounter++ });
+    }
+  }
+  return { ...base, action: "update", ops, createRows: [], flags };
+}

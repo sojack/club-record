@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import Papa from "papaparse";
-import { buildCombinedCsv, COMBINED_COLUMNS, parseCombinedCsv } from "./combined-csv";
+import { buildCombinedCsv, COMBINED_COLUMNS, parseCombinedCsv, planReconciliation, type CombinedGroup } from "./combined-csv";
 import type { RecordList, SwimRecord } from "@/types/database";
+import type { CSVRecord } from "@/lib/csv-parser";
 
 function list(over: Partial<RecordList>): RecordList {
   return {
@@ -96,5 +97,80 @@ describe("parseCombinedCsv", () => {
     const { groups, errors } = parseCombinedCsv(csv, "club");
     expect(errors.length).toBe(1);
     expect(groups.find((g) => g.slug === "boys-scm")?.rows ?? []).toHaveLength(0);
+  });
+});
+
+function csvRec(over: Partial<CSVRecord>): CSVRecord {
+  return {
+    event_name: "50 Free", time_ms: 24560, swimmer_name: "A",
+    swimmer_name_2: null, swimmer_name_3: null, swimmer_name_4: null,
+    age_group: null, record_club: null, province: null, record_date: null,
+    location: null, split_times: null, is_national: false, is_current_national: false,
+    is_provincial: false, is_current_provincial: false, is_split: false,
+    is_relay_split: false, is_new: false, is_world_record: false, ...over,
+  };
+}
+function group(rows: CombinedGroup["rows"]): CombinedGroup {
+  return { slug: "boys-scm", title: "Boys SCM", courseType: "SCM", gender: "male", recordType: "individual", rows };
+}
+
+describe("planReconciliation — update", () => {
+  it("updates a row matched by Record ID in place", () => {
+    const g = group([{ recordId: "r1", isCurrent: true, supersededBy: null, record: csvRec({ time_ms: 24000 }) }]);
+    const plan = planReconciliation(g, { id: "l1" }, [rec({ id: "r1", time_ms: 24560 })], "club");
+    expect(plan.action).toBe("update");
+    expect(plan.ops).toEqual([{ kind: "update", id: "r1", fields: csvRec({ time_ms: 24000 }) }]);
+  });
+
+  it("supersedes when a new no-id row beats the current record in the slot", () => {
+    const g = group([{ recordId: null, isCurrent: true, supersededBy: null, record: csvRec({ time_ms: 24000, swimmer_name: "New" }) }]);
+    const plan = planReconciliation(g, { id: "l1" }, [rec({ id: "r1", time_ms: 24560, sort_order: 3 })], "club");
+    expect(plan.ops).toEqual([{ kind: "supersede", oldId: "r1", fields: csvRec({ time_ms: 24000, swimmer_name: "New" }), sortOrder: 3 }]);
+  });
+
+  it("inserts (not supersede) and flags when the new time is not faster", () => {
+    const g = group([{ recordId: null, isCurrent: true, supersededBy: null, record: csvRec({ time_ms: 25000 }) }]);
+    const plan = planReconciliation(g, { id: "l1" }, [rec({ id: "r1", time_ms: 24560, sort_order: 0 })], "club");
+    expect(plan.ops[0].kind).toBe("insert");
+    expect(plan.flags.length).toBe(1);
+  });
+
+  it("inserts and flags when the slot has more than one current record", () => {
+    const g = group([{ recordId: null, isCurrent: true, supersededBy: null, record: csvRec({ time_ms: 20000 }) }]);
+    const existing = [rec({ id: "a", time_ms: 24560 }), rec({ id: "b", time_ms: 24560, is_split: true })];
+    const plan = planReconciliation(g, { id: "l1" }, existing, "club");
+    expect(plan.ops[0].kind).toBe("insert");
+    expect(plan.flags.length).toBe(1);
+  });
+
+  it("does not emit any op for existing DB records absent from the CSV", () => {
+    const g = group([{ recordId: "r1", isCurrent: true, supersededBy: null, record: csvRec({}) }]);
+    const existing = [rec({ id: "r1" }), rec({ id: "keep", event_name: "100 Free" })];
+    const plan = planReconciliation(g, { id: "l1" }, existing, "club");
+    expect(plan.ops.some((o) => "id" in o && o.id === "keep")).toBe(false);
+    expect(plan.ops.some((o) => o.kind === "supersede" && o.oldId === "keep")).toBe(false);
+  });
+});
+
+describe("planReconciliation — create", () => {
+  it("plans current rows with ordinals and links history via csv id", () => {
+    const g = group([
+      { recordId: "cur", isCurrent: true, supersededBy: null, record: csvRec({ time_ms: 24000 }) },
+      { recordId: "old", isCurrent: false, supersededBy: "cur", record: csvRec({ time_ms: 25000 }) },
+    ]);
+    const plan = planReconciliation(g, null, [], "club");
+    expect(plan.action).toBe("create");
+    expect(plan.createRows).toHaveLength(2);
+    const hist = plan.createRows.find((r) => !r.isCurrent)!;
+    expect(hist.supersededByCsvId).toBe("cur");
+  });
+
+  it("drops and flags a history row whose supersededBy matches no current row", () => {
+    const g = group([
+      { recordId: "old", isCurrent: false, supersededBy: "ghost", record: csvRec({}) },
+    ]);
+    const plan = planReconciliation(g, null, [], "club");
+    expect(plan.createRows).toHaveLength(0);
+    expect(plan.flags.length).toBe(1);
   });
 });
