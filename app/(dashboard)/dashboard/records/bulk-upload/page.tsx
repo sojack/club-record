@@ -7,6 +7,13 @@ import { useClub } from "@/contexts/ClubContext";
 import { parseRecordsCSV, CSVRecord } from "@/lib/csv-parser";
 import { scopeForClubLevel, type ListScope } from "@/lib/scope";
 import { normalizeListTitle } from "@/lib/list-title";
+import {
+  parseCombinedCsv,
+  planReconciliation,
+  type ListPlan,
+  type CreateRow,
+} from "@/lib/combined-csv";
+import type { SwimRecord } from "@/types/database";
 
 interface ParsedFile {
   file: File;
@@ -59,6 +66,9 @@ export default function BulkUploadPage() {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const [results, setResults] = useState<{ success: string[]; failed: string[] } | null>(null);
+  const [mode, setMode] = useState<"per-list" | "combined">("per-list");
+  const [plans, setPlans] = useState<ListPlan[] | null>(null);
+  const [planErrors, setPlanErrors] = useState<string[]>([]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -190,6 +200,187 @@ export default function BulkUploadPage() {
     }
   };
 
+  const handleCombinedFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedClub) return;
+    const content = await file.text();
+    const scope = scopeForClubLevel(selectedClub.level);
+    const { groups, errors } = parseCombinedCsv(content, scope);
+    setPlanErrors(errors);
+
+    const supabase = createClient();
+    const built: ListPlan[] = [];
+    for (const group of groups) {
+      let existingList: { id: string } | null = null;
+      let existingRecords: SwimRecord[] = [];
+      if (group.slug) {
+        const { data: list } = await supabase
+          .from("record_lists")
+          .select("id")
+          .eq("club_id", selectedClub.id)
+          .eq("slug", group.slug)
+          .maybeSingle();
+        if (list) {
+          existingList = { id: list.id };
+          const { data: recs } = await supabase
+            .from("records")
+            .select("*")
+            .eq("record_list_id", list.id);
+          existingRecords = (recs as SwimRecord[]) ?? [];
+        }
+      }
+      built.push(planReconciliation(group, existingList, existingRecords, scope));
+    }
+    setPlans(built);
+    setResults(null);
+  };
+
+  const insertRecord = async (
+    supabase: ReturnType<typeof createClient>,
+    listId: string,
+    fields: CreateRow["fields"],
+    sortOrder: number,
+    isCurrent: boolean,
+    supersededBy: string | null
+  ) => {
+    const { data, error } = await supabase
+      .from("records")
+      .insert({
+        record_list_id: listId,
+        event_name: fields.event_name,
+        time_ms: fields.time_ms,
+        swimmer_name: fields.swimmer_name,
+        swimmer_name_2: fields.swimmer_name_2,
+        swimmer_name_3: fields.swimmer_name_3,
+        swimmer_name_4: fields.swimmer_name_4,
+        age_group: fields.age_group,
+        record_club: fields.record_club,
+        province: fields.province,
+        record_date: fields.record_date,
+        location: fields.location,
+        split_times: fields.split_times,
+        sort_order: sortOrder,
+        is_national: fields.is_national,
+        is_current_national: fields.is_current_national,
+        is_provincial: fields.is_provincial,
+        is_current_provincial: fields.is_current_provincial,
+        is_split: fields.is_split,
+        is_relay_split: fields.is_relay_split,
+        is_new: fields.is_new,
+        is_world_record: fields.is_world_record,
+        is_current: isCurrent,
+        superseded_by: supersededBy,
+      })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data.id as string;
+  };
+
+  const executePlans = async () => {
+    if (!selectedClub || !plans) return;
+    setUploading(true);
+    const supabase = createClient();
+    const success: string[] = [];
+    const failed: string[] = [];
+
+    for (const plan of plans) {
+      try {
+        let listId: string;
+        if (plan.action === "create") {
+          const slug =
+            plan.slug ||
+            plan.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+          const { data: listData, error } = await supabase
+            .from("record_lists")
+            .insert({
+              club_id: selectedClub.id,
+              title: plan.title,
+              slug,
+              course_type: plan.courseType,
+              gender: plan.gender,
+              record_type: plan.recordType,
+              scope: plan.scope,
+            })
+            .select()
+            .single();
+          if (error) throw new Error(error.message);
+          listId = listData.id;
+
+          // Insert current rows, mapping csv id -> new db id, then history rows.
+          const idMap = new Map<string, string>();
+          for (const cr of plan.createRows.filter((r) => r.isCurrent)) {
+            const newId = await insertRecord(supabase, listId, cr.fields, cr.sortOrder, true, null);
+            if (cr.csvRecordId) idMap.set(cr.csvRecordId, newId);
+          }
+          for (const cr of plan.createRows.filter((r) => !r.isCurrent)) {
+            const parentId = cr.supersededByCsvId ? idMap.get(cr.supersededByCsvId) ?? null : null;
+            await insertRecord(supabase, listId, cr.fields, cr.sortOrder, false, parentId);
+          }
+        } else {
+          // action === "update": re-resolve the list id by slug to apply ops.
+          const { data: list } = await supabase
+            .from("record_lists")
+            .select("id")
+            .eq("club_id", selectedClub.id)
+            .eq("slug", plan.slug)
+            .maybeSingle();
+          if (!list) throw new Error("list vanished");
+          listId = list.id;
+
+          for (const op of plan.ops) {
+            if (op.kind === "update") {
+              const { error } = await supabase.from("records").update({
+                event_name: op.fields.event_name, time_ms: op.fields.time_ms,
+                swimmer_name: op.fields.swimmer_name, swimmer_name_2: op.fields.swimmer_name_2,
+                swimmer_name_3: op.fields.swimmer_name_3, swimmer_name_4: op.fields.swimmer_name_4,
+                age_group: op.fields.age_group, record_club: op.fields.record_club,
+                province: op.fields.province, record_date: op.fields.record_date,
+                location: op.fields.location, split_times: op.fields.split_times,
+                is_national: op.fields.is_national, is_current_national: op.fields.is_current_national,
+                is_provincial: op.fields.is_provincial, is_current_provincial: op.fields.is_current_provincial,
+                is_split: op.fields.is_split, is_relay_split: op.fields.is_relay_split,
+                is_new: op.fields.is_new, is_world_record: op.fields.is_world_record,
+              }).eq("id", op.id);
+              if (error) throw new Error(error.message);
+            } else if (op.kind === "insert") {
+              await insertRecord(supabase, listId, op.fields, op.sortOrder, true, null);
+            } else {
+              // supersede: insert new current, mark old, re-parent ancestors
+              const newId = await insertRecord(supabase, listId, op.fields, op.sortOrder, true, null);
+              const { error: e1 } = await supabase.from("records")
+                .update({ superseded_by: newId, is_current: false }).eq("id", op.oldId);
+              if (e1) throw new Error(e1.message);
+              await supabase.from("records").update({ superseded_by: newId }).eq("superseded_by", op.oldId);
+            }
+          }
+        }
+        success.push(`${plan.title}: ${plan.action === "create" ? "created" : "updated"}`);
+      } catch (err) {
+        failed.push(`${plan.title}: ${(err as Error).message}`);
+      }
+    }
+
+    setResults({ success, failed });
+    setPlans(null);
+    setUploading(false);
+  };
+
+  const planCounts = (plan: ListPlan) => {
+    if (plan.action === "create") {
+      return {
+        updates: 0,
+        newRecords: plan.createRows.filter((r) => r.isCurrent).length,
+        supersessions: 0,
+      };
+    }
+    return {
+      updates: plan.ops.filter((o) => o.kind === "update").length,
+      newRecords: plan.ops.filter((o) => o.kind === "insert").length,
+      supersessions: plan.ops.filter((o) => o.kind === "supersede").length,
+    };
+  };
+
   if (clubLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -265,6 +456,8 @@ export default function BulkUploadPage() {
             <button
               onClick={() => {
                 setParsedFiles([]);
+                setPlans(null);
+                setPlanErrors([]);
                 setResults(null);
               }}
               className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
@@ -276,6 +469,36 @@ export default function BulkUploadPage() {
       )}
 
       {!results && (
+        <>
+          {/* Mode toggle */}
+          <div className="mb-6 inline-flex rounded-lg border border-gray-300 p-1 dark:border-gray-600">
+            <button
+              type="button"
+              onClick={() => setMode("per-list")}
+              className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                mode === "per-list"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+              }`}
+            >
+              Files per list
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("combined")}
+              className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                mode === "combined"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+              }`}
+            >
+              Combined CSV
+            </button>
+          </div>
+        </>
+      )}
+
+      {!results && mode === "per-list" && (
         <>
           {/* File Input */}
           <div className="mb-6 rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
@@ -423,15 +646,150 @@ export default function BulkUploadPage() {
         </>
       )}
 
+      {!results && mode === "combined" && (
+        <>
+          {/* Combined File Input */}
+          <div className="mb-6 rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+              Select Combined CSV
+            </h2>
+            <div className="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center dark:border-gray-600">
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleCombinedFile}
+                className="hidden"
+                id="combined-csv-file"
+              />
+              <label
+                htmlFor="combined-csv-file"
+                className="cursor-pointer text-gray-600 dark:text-gray-400"
+              >
+                <div className="text-4xl">📄</div>
+                <p className="mt-2 font-medium">Click to select a combined CSV</p>
+                <p className="mt-1 text-sm">
+                  A single file with every list, exported from this page. We&rsquo;ll match
+                  records by Record ID and only add a new record when a faster time appears
+                  in a slot &mdash; nothing is ever deleted.
+                </p>
+              </label>
+            </div>
+          </div>
+
+          {/* Plan Preview */}
+          {planErrors.length > 0 && (
+            <div className="mb-6 rounded-lg bg-amber-50 p-4 dark:bg-amber-900/50">
+              <h3 className="font-medium text-amber-800 dark:text-amber-200">
+                Rows skipped while parsing ({planErrors.length})
+              </h3>
+              <ul className="mt-2 list-inside list-disc text-sm text-amber-700 dark:text-amber-300">
+                {planErrors.slice(0, 10).map((err, i) => (
+                  <li key={i}>{err}</li>
+                ))}
+                {planErrors.length > 10 && <li>...and {planErrors.length - 10} more</li>}
+              </ul>
+            </div>
+          )}
+
+          {plans && plans.length > 0 && (
+            <div className="mb-6 rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+              <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+                Preview ({plans.length} list{plans.length === 1 ? "" : "s"})
+              </h2>
+              <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+                Existing records not in this file are kept.
+              </p>
+              <div className="space-y-4">
+                {plans.map((plan, index) => {
+                  const counts = planCounts(plan);
+                  return (
+                    <div
+                      key={index}
+                      className="rounded-lg border border-gray-200 p-4 dark:border-gray-700"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                          <div className="font-medium text-gray-900 dark:text-white">
+                            {plan.title}
+                          </div>
+                          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            {plan.courseType} &middot; {plan.recordType}
+                          </div>
+                        </div>
+                        <span
+                          className={`inline-block rounded px-2 py-1 text-xs font-medium ${
+                            plan.action === "create"
+                              ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+                              : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
+                          }`}
+                        >
+                          {plan.action === "create" ? "Create" : "Update"}
+                        </span>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
+                        <span>{counts.updates} update{counts.updates === 1 ? "" : "s"}</span>
+                        <span>{counts.newRecords} new record{counts.newRecords === 1 ? "" : "s"}</span>
+                        <span>{counts.supersessions} supersession{counts.supersessions === 1 ? "" : "s"}</span>
+                      </div>
+                      {plan.flags.length > 0 && (
+                        <ul className="mt-3 list-inside list-disc text-xs text-amber-600 dark:text-amber-400">
+                          {plan.flags.map((flag, i) => (
+                            <li key={i}>{flag}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Confirm Button */}
+              <div className="mt-6 flex items-center justify-between">
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  No existing records are deleted &mdash; superseded records are kept as history.
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setPlans(null);
+                      setPlanErrors([]);
+                    }}
+                    className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    onClick={executePlans}
+                    disabled={uploading}
+                    className="rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {uploading ? "Importing..." : "Confirm & import"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
       {/* Help */}
       <div className="rounded-xl bg-gray-100 p-6 dark:bg-gray-800/50">
         <h3 className="font-medium text-gray-900 dark:text-white">Tips</h3>
-        <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-gray-600 dark:text-gray-400">
-          <li>Filenames are converted to list titles (underscores become spaces, hyphens preserved)</li>
-          <li>Course type (SCM, LCM, SCY) is auto-detected from filename</li>
-          <li>You can edit titles and course types before uploading</li>
-          <li>Each CSV needs: Event, Time, Swimmer columns (Date, Location optional)</li>
-        </ul>
+        {mode === "per-list" ? (
+          <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-gray-600 dark:text-gray-400">
+            <li>Filenames are converted to list titles (underscores become spaces, hyphens preserved)</li>
+            <li>Course type (SCM, LCM, SCY) is auto-detected from filename</li>
+            <li>You can edit titles and course types before uploading</li>
+            <li>Each CSV needs: Event, Time, Swimmer columns (Date, Location optional)</li>
+          </ul>
+        ) : (
+          <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-gray-600 dark:text-gray-400">
+            <li>Use the combined CSV exported from this club&rsquo;s record lists</li>
+            <li>Rows with a matching Record ID update that record in place</li>
+            <li>A faster time in an existing slot supersedes the old record &mdash; it becomes history, not deleted</li>
+            <li>Lists that no longer exist are recreated, including their history chain</li>
+          </ul>
+        )}
       </div>
     </div>
   );
