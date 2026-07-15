@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseSplitsColumn, splitRows } from "./split-utils";
+import { parseSplitsColumn, formatSplitsColumn, splitRows } from "./split-utils";
 
 describe("parseSplitsColumn", () => {
   it("parses cumulative distance=time pairs into ms", () => {
@@ -53,5 +53,28 @@ describe("splitRows", () => {
     expect(splitRows([{ distance: 50, ms: 29100 }])).toEqual([
       { distance: 50, cumulativeMs: 29100, deltaMs: 29100 },
     ]);
+  });
+});
+
+describe("formatSplitsColumn", () => {
+  it("returns empty string for null", () => {
+    expect(formatSplitsColumn(null)).toBe("");
+  });
+
+  it("serializes cumulative distance=time pairs", () => {
+    expect(
+      formatSplitsColumn([
+        { distance: 50, ms: 29100 },
+        { distance: 100, ms: 62780 },
+      ])
+    ).toBe("50=29.10;100=1:02.78");
+  });
+
+  it("round-trips through parseSplitsColumn", () => {
+    const splits = [
+      { distance: 50, ms: 29100 },
+      { distance: 100, ms: 62780 },
+    ];
+    expect(parseSplitsColumn(formatSplitsColumn(splits))).toEqual(splits);
   });
 });

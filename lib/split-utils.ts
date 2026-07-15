@@ -1,5 +1,5 @@
 import type { SplitTime } from "@/types/database";
-import { parseTimeToMs } from "@/lib/time-utils";
+import { parseTimeToMs, formatMsToTime } from "@/lib/time-utils";
 
 /**
  * Parse the CSV `Splits` cell — cumulative `distance=time` pairs separated by
@@ -32,6 +32,15 @@ export function parseSplitsColumn(raw: string | undefined): SplitTime[] | null {
     out.push({ distance, ms });
   }
   return out.length > 0 ? out : null;
+}
+
+/**
+ * Serialize cumulative splits back to the CSV `Splits` cell — inverse of
+ * `parseSplitsColumn`. Returns "" for null/empty so the export cell is blank.
+ */
+export function formatSplitsColumn(splits: SplitTime[] | null): string {
+  if (!splits || splits.length === 0) return "";
+  return splits.map((s) => `${s.distance}=${formatMsToTime(s.ms)}`).join(";");
 }
 
 export interface SplitRow {
