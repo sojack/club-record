@@ -61,7 +61,7 @@ function parseFilename(filename: string): {
 }
 
 export default function BulkUploadPage() {
-  const { selectedClub, isLoading: clubLoading } = useClub();
+  const { selectedClub, isLoading: clubLoading, canEdit } = useClub();
   const [parsedFiles, setParsedFiles] = useState<ParsedFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
@@ -367,7 +367,9 @@ export default function BulkUploadPage() {
               const { error: e1 } = await supabase.from("records")
                 .update({ superseded_by: newId, is_current: false }).eq("id", op.oldId);
               if (e1) throw new Error(e1.message);
-              await supabase.from("records").update({ superseded_by: newId }).eq("superseded_by", op.oldId);
+              const { error: e2 } = await supabase.from("records")
+                .update({ superseded_by: newId }).eq("superseded_by", op.oldId);
+              if (e2) throw new Error(e2.message);
             }
           }
         }
@@ -499,17 +501,19 @@ export default function BulkUploadPage() {
             >
               Files per list
             </button>
-            <button
-              type="button"
-              onClick={() => setMode("combined")}
-              className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
-                mode === "combined"
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-              }`}
-            >
-              Combined CSV
-            </button>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => setMode("combined")}
+                className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                  mode === "combined"
+                    ? "bg-blue-600 text-white"
+                    : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                }`}
+              >
+                Combined CSV
+              </button>
+            )}
           </div>
         </>
       )}
@@ -662,7 +666,15 @@ export default function BulkUploadPage() {
         </>
       )}
 
-      {!results && mode === "combined" && (
+      {!results && mode === "combined" && !canEdit && (
+        <div className="mb-6 rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            You need editor access to import records.
+          </p>
+        </div>
+      )}
+
+      {!results && mode === "combined" && canEdit && (
         <>
           {/* Combined File Input */}
           <div className="mb-6 rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
@@ -791,7 +803,7 @@ export default function BulkUploadPage() {
       {/* Help */}
       <div className="rounded-xl bg-gray-100 p-6 dark:bg-gray-800/50">
         <h3 className="font-medium text-gray-900 dark:text-white">Tips</h3>
-        {mode === "per-list" ? (
+        {mode === "per-list" || !canEdit ? (
           <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-gray-600 dark:text-gray-400">
             <li>Filenames are converted to list titles (underscores become spaces, hyphens preserved)</li>
             <li>Course type (SCM, LCM, SCY) is auto-detected from filename</li>
