@@ -150,6 +150,35 @@ describe("planReconciliation — update", () => {
     expect(plan.ops.some((o) => "id" in o && o.id === "keep")).toBe(false);
     expect(plan.ops.some((o) => o.kind === "supersede" && o.oldId === "keep")).toBe(false);
   });
+
+  it("only supersedes once when two new rows target the same record; the second is inserted", () => {
+    const g = group([
+      { recordId: null, isCurrent: true, supersededBy: null, record: csvRec({ time_ms: 24000 }) },
+      { recordId: null, isCurrent: true, supersededBy: null, record: csvRec({ time_ms: 23000 }) },
+    ]);
+    const plan = planReconciliation(g, { id: "l1" }, [rec({ id: "r1", time_ms: 24560, sort_order: 5 })], "club");
+    const supersedes = plan.ops.filter((o) => o.kind === "supersede");
+    const inserts = plan.ops.filter((o) => o.kind === "insert");
+    expect(supersedes).toHaveLength(1);
+    expect(inserts).toHaveLength(1);
+    expect((supersedes[0] as { oldId: string }).oldId).toBe("r1");
+    expect(plan.flags.some((f) => f.toLowerCase().includes("same record"))).toBe(true);
+  });
+
+  it("inserts a new record with no flag when its slot has no current record", () => {
+    const g = group([{ recordId: null, isCurrent: true, supersededBy: null, record: csvRec({ event_name: "200 IM", time_ms: 130000 }) }]);
+    const plan = planReconciliation(g, { id: "l1" }, [rec({ id: "r1", event_name: "50 Free" })], "club");
+    expect(plan.ops).toHaveLength(1);
+    expect(plan.ops[0].kind).toBe("insert");
+    expect(plan.flags).toEqual([]);
+  });
+
+  it("drops and flags a non-current row with no matching existing record (update)", () => {
+    const g = group([{ recordId: "ghost", isCurrent: false, supersededBy: "x", record: csvRec({}) }]);
+    const plan = planReconciliation(g, { id: "l1" }, [rec({ id: "r1" })], "club");
+    expect(plan.ops).toEqual([]);
+    expect(plan.flags.length).toBe(1);
+  });
 });
 
 describe("planReconciliation — create", () => {
