@@ -174,16 +174,51 @@ describe("planReconciliation — update", () => {
   });
 
   it("drops and flags a non-current row with no matching existing record (update)", () => {
-    const g = group([{ recordId: "ghost", isCurrent: false, supersededBy: "x", record: csvRec({}) }]);
+    const g = group([{ recordId: "ghost", isCurrent: false, supersededBy: "x", record: csvRec({ swimmer_name: "Ghost", time_ms: 99999 }) }]);
     const plan = planReconciliation(g, { id: "l1" }, [rec({ id: "r1" })], "club");
     expect(plan.ops).toEqual([]);
     expect(plan.flags.length).toBe(1);
+  });
+
+  it("does not resurrect a re-listed broken record whose Record ID and Is Current were stripped", () => {
+    // A slower row read as current (Is Current lost -> defaults true) that
+    // exactly matches an existing HISTORY record must be a no-op, not inserted
+    // as a new current event. The live record's row updates in place.
+    const g = group([
+      { recordId: null, isCurrent: true, supersededBy: null, record: csvRec({ time_ms: 24000, swimmer_name: "Fast" }) },
+      { recordId: null, isCurrent: true, supersededBy: null, record: csvRec({ time_ms: 25000, swimmer_name: "Slow" }) },
+    ]);
+    const existing = [
+      rec({ id: "C", time_ms: 24000, swimmer_name: "Fast", is_current: true, sort_order: 0 }),
+      rec({ id: "H", time_ms: 25000, swimmer_name: "Slow", is_current: false, superseded_by: "C", sort_order: 0 }),
+    ];
+    const plan = planReconciliation(g, { id: "l1" }, existing, "club");
+    expect(plan.ops.filter((o) => o.kind === "insert")).toHaveLength(0);
+    expect(plan.ops).toEqual([{ kind: "update", id: "C", fields: csvRec({ time_ms: 24000, swimmer_name: "Fast" }) }]);
   });
 
   it("treats an id-less row exactly matching an existing record (same time+swimmer) as an update, not a duplicate", () => {
     const g = group([{ recordId: null, isCurrent: true, supersededBy: null, record: csvRec({ time_ms: 24560, swimmer_name: "A" }) }]);
     const plan = planReconciliation(g, { id: "l1" }, [rec({ id: "r1", time_ms: 24560, swimmer_name: "A" })], "club");
     expect(plan.ops).toEqual([{ kind: "update", id: "r1", fields: csvRec({ time_ms: 24560, swimmer_name: "A" }) }]);
+    expect(plan.flags).toEqual([]);
+  });
+
+  it("no-ops (no flag) a correctly-marked history row that content-matches an existing history record", () => {
+    const g = group([{ recordId: null, isCurrent: false, supersededBy: null, record: csvRec({ time_ms: 25000, swimmer_name: "Slow" }) }]);
+    const existing = [
+      rec({ id: "C", time_ms: 24000, swimmer_name: "Fast", is_current: true }),
+      rec({ id: "H", time_ms: 25000, swimmer_name: "Slow", is_current: false, superseded_by: "C" }),
+    ];
+    const plan = planReconciliation(g, { id: "l1" }, existing, "club");
+    expect(plan.ops).toEqual([]);
+    expect(plan.flags).toEqual([]);
+  });
+
+  it("updates in place when an isCurrent=false row content-matches the live record", () => {
+    const g = group([{ recordId: null, isCurrent: false, supersededBy: null, record: csvRec({ time_ms: 24560, swimmer_name: "A", location: "New Pool" }) }]);
+    const plan = planReconciliation(g, { id: "l1" }, [rec({ id: "r1", time_ms: 24560, swimmer_name: "A", is_current: true })], "club");
+    expect(plan.ops).toEqual([{ kind: "update", id: "r1", fields: csvRec({ time_ms: 24560, swimmer_name: "A", location: "New Pool" }) }]);
     expect(plan.flags).toEqual([]);
   });
 

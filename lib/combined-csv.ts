@@ -230,10 +230,11 @@ export function planReconciliation(
 
   const byId = new Map(existingRecords.map((r) => [r.id, r]));
   const currentBySlot = new Map<string, SwimRecord[]>();
+  const allBySlot = new Map<string, SwimRecord[]>();
   for (const r of existingRecords) {
-    if (!r.is_current) continue;
     const k = slotKey(r);
-    currentBySlot.set(k, [...(currentBySlot.get(k) ?? []), r]);
+    allBySlot.set(k, [...(allBySlot.get(k) ?? []), r]);
+    if (r.is_current) currentBySlot.set(k, [...(currentBySlot.get(k) ?? []), r]);
   }
   let appendCounter = existingRecords.reduce((m, r) => Math.max(m, r.sort_order), -1) + 1;
   const supersededOldIds = new Set<string>();
@@ -251,22 +252,28 @@ export function planReconciliation(
       ops.push({ kind: "update", id: row.recordId, fields: row.record });
       continue;
     }
+    // Safety net: an id-less row that exactly matches an EXISTING record in its
+    // slot (by time + swimmer) is that same record re-listed without its Record
+    // ID (e.g. an edit dropped the linkage columns). If it matches the live
+    // record, update in place; if it matches a record that is already history,
+    // it exists — no-op. This prevents both duplicating a record and
+    // resurrecting a broken/history record as a new current event.
+    const slot = slotKey(row.record);
+    const existingMatch = (allBySlot.get(slot) ?? []).find(
+      (r) => r.time_ms === row.record.time_ms && r.swimmer_name === row.record.swimmer_name
+    );
+    if (existingMatch) {
+      if (existingMatch.is_current) {
+        ops.push({ kind: "update", id: existingMatch.id, fields: row.record });
+      }
+      continue;
+    }
+    // A history row with no id and no matching record is a genuine orphan.
     if (!row.isCurrent) {
       flags.push(`history row for ${row.record.event_name} has no matching record — skipped`);
       continue;
     }
-    const inSlot = currentBySlot.get(slotKey(row.record)) ?? [];
-    // Safety net: an id-less current row that exactly matches an existing
-    // current record in its slot (same time and swimmer) is the SAME record
-    // re-listed without its Record ID (e.g. an AI edit dropped the column) —
-    // update it in place instead of inserting a duplicate.
-    const exactMatch = inSlot.find(
-      (r) => r.time_ms === row.record.time_ms && r.swimmer_name === row.record.swimmer_name
-    );
-    if (exactMatch) {
-      ops.push({ kind: "update", id: exactMatch.id, fields: row.record });
-      continue;
-    }
+    const inSlot = currentBySlot.get(slot) ?? [];
     if (inSlot.length === 1 && row.record.time_ms < inSlot[0].time_ms) {
       if (supersededOldIds.has(inSlot[0].id)) {
         flags.push(`multiple new records break the same record (${row.record.event_name}) — added as new instead`);
