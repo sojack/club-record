@@ -137,6 +137,22 @@ export default function HomePage() {
               Learn how &rarr;
             </span>
           </Link>
+          <Link
+            href="/help/update-with-ai"
+            className="group rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5 transition-all hover:-translate-y-0.5 hover:shadow-md dark:bg-gray-900 dark:ring-white/10"
+          >
+            <div className="mb-4 text-3xl">🔄</div>
+            <h2 className="mb-2 font-display text-lg font-semibold text-gray-900 dark:text-white">
+              AI-Assisted Update
+            </h2>
+            <p className="leading-relaxed text-gray-600 dark:text-gray-400">
+              Records already in Club Record? Export them, let AI apply new
+              results and corrections, then re-import &mdash; history and all.
+            </p>
+            <span className="mt-3 inline-block text-sm font-medium text-blue-700 group-hover:text-gold-700 group-hover:underline dark:text-blue-400 dark:group-hover:text-gold-400">
+              Learn how &rarr;
+            </span>
+          </Link>
         </div>
       </main>
 

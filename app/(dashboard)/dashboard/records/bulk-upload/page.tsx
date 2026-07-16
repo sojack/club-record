@@ -717,6 +717,15 @@ export default function BulkUploadPage() {
                 </p>
               </label>
             </div>
+            <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-100">
+              <strong>Keep a backup before you make changes.</strong> Export your
+              records first and save that file. If an update goes wrong,
+              re-importing your backup restores the previous values.{" "}
+              <Link href="/help/update-with-ai" className="underline">
+                Learn more
+              </Link>
+              .
+            </div>
             <div className="mt-4">
               <button
                 type="button"
