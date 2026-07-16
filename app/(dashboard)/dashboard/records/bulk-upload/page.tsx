@@ -338,14 +338,14 @@ export default function BulkUploadPage() {
           if (error) throw new Error(error.message);
           listId = listData.id;
 
-          // Insert current rows, mapping csv id -> new db id, then history rows.
+          // Insert current rows, mapping local id -> new db id, then history rows.
           const idMap = new Map<string, string>();
           for (const cr of plan.createRows.filter((r) => r.isCurrent)) {
             const newId = await insertRecord(supabase, listId, cr.fields, cr.sortOrder, true, null);
-            if (cr.csvRecordId) idMap.set(cr.csvRecordId, newId);
+            idMap.set(cr.localId, newId);
           }
           for (const cr of plan.createRows.filter((r) => !r.isCurrent)) {
-            const parentId = cr.supersededByCsvId ? idMap.get(cr.supersededByCsvId) ?? null : null;
+            const parentId = cr.supersededByLocalId ? idMap.get(cr.supersededByLocalId) ?? null : null;
             await insertRecord(supabase, listId, cr.fields, cr.sortOrder, false, parentId);
           }
         } else {

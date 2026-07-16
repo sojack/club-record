@@ -244,7 +244,7 @@ describe("planReconciliation — update", () => {
 });
 
 describe("planReconciliation — create", () => {
-  it("plans current rows with ordinals and links history via csv id", () => {
+  it("plans current rows with ordinals and links history to its current row", () => {
     const g = group([
       { recordId: "cur", isCurrent: true, supersededBy: null, record: csvRec({ time_ms: 24000 }) },
       { recordId: "old", isCurrent: false, supersededBy: "cur", record: csvRec({ time_ms: 25000 }) },
@@ -252,8 +252,49 @@ describe("planReconciliation — create", () => {
     const plan = planReconciliation(g, null, [], "club");
     expect(plan.action).toBe("create");
     expect(plan.createRows).toHaveLength(2);
+    const cur = plan.createRows.find((r) => r.isCurrent)!;
     const hist = plan.createRows.find((r) => !r.isCurrent)!;
-    expect(hist.supersededByCsvId).toBe("cur");
+    expect(hist.supersededByLocalId).toBe(cur.localId);
+  });
+
+  it("resolves a break on create: fastest current wins, the slower becomes history", () => {
+    // A break represented as two current rows (old with id + new faster, no id).
+    const g = group([
+      { recordId: "0f8ad973", isCurrent: true, supersededBy: null, record: csvRec({ time_ms: 36000, swimmer_name: "Old" }) },
+      { recordId: null, isCurrent: true, supersededBy: null, record: csvRec({ time_ms: 34500, swimmer_name: "New" }) },
+    ]);
+    const plan = planReconciliation(g, null, [], "club");
+    const currents = plan.createRows.filter((r) => r.isCurrent);
+    const history = plan.createRows.filter((r) => !r.isCurrent);
+    expect(currents).toHaveLength(1);
+    expect(currents[0].fields.time_ms).toBe(34500);
+    expect(history).toHaveLength(1);
+    expect(history[0].fields.time_ms).toBe(36000);
+    expect(history[0].supersededByLocalId).toBe(currents[0].localId);
+  });
+
+  it("keeps a split-time record current alongside the main record on create", () => {
+    const g = group([
+      { recordId: "m", isCurrent: true, supersededBy: null, record: csvRec({ time_ms: 34500, swimmer_name: "Main" }) },
+      { recordId: "s", isCurrent: true, supersededBy: null, record: csvRec({ time_ms: 16000, swimmer_name: "Main", is_split: true }) },
+    ]);
+    const plan = planReconciliation(g, null, [], "club");
+    expect(plan.createRows.filter((r) => r.isCurrent)).toHaveLength(2);
+  });
+
+  it("does not link a split history row to a demoted break-loser (drops+flags instead)", () => {
+    // Two current rows in a slot -> the slower (id "loser") is demoted to history.
+    // A split history row referencing "loser" must not resolve to a non-current
+    // parent (which would orphan it in the DB); it is dropped and flagged.
+    const g = group([
+      { recordId: "loser", isCurrent: true, supersededBy: null, record: csvRec({ time_ms: 36000, swimmer_name: "Old" }) },
+      { recordId: null, isCurrent: true, supersededBy: null, record: csvRec({ time_ms: 34500, swimmer_name: "New" }) },
+      { recordId: "sp", isCurrent: false, supersededBy: "loser", record: csvRec({ time_ms: 16000, swimmer_name: "Old", is_split: true }) },
+    ]);
+    const plan = planReconciliation(g, null, [], "club");
+    // The split history row is not created (no valid current parent).
+    expect(plan.createRows.some((r) => r.fields.is_split)).toBe(false);
+    expect(plan.flags.length).toBeGreaterThanOrEqual(1);
   });
 
   it("drops and flags a history row whose supersededBy matches no current row", () => {
